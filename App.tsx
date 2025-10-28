@@ -1,16 +1,19 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import type { RevealedAnswer, Team } from './types';
+import type { RevealedAnswer, Team, FaceOffMinigameType } from './types';
 import { Difficulty } from './types';
 import { ANSWERS_COUNT } from './constants';
 import { gameData } from './gameData';
 import SetupScreen from './components/SetupScreen';
 import GameBoard from './components/GameBoard';
+import { rainConfetti } from './services/particleService';
 
 type GameState = 'setup' | 'playing' | 'gameOver' | 'roundTransition';
 
+const minigameRotation: FaceOffMinigameType[] = ['TeleportingBell'];
+
 const App: React.FC = () => {
   const [gameState, setGameState] = useState<GameState>('setup');
-  const [roundData, setRoundData] = useState<{ category: string; answers: RevealedAnswer[] } | null>(null);
+  const [roundData, setRoundData] = useState<{ category: string; answers: RevealedAnswer[]; minigame: FaceOffMinigameType } | null>(null);
   
   const [scores, setScores] = useState({ team1: 0, team2: 0 });
   const [gameSettings, setGameSettings] = useState<{ difficulty: Difficulty; totalRounds: number } | null>(null);
@@ -42,6 +45,7 @@ const App: React.FC = () => {
       const winner = scores.team1 > scores.team2 ? 1 : (scores.team2 > scores.team1 ? 2 : null);
       setGameWinner(winner); 
       setGameState('gameOver');
+      rainConfetti(); // Celebrate game end even if categories run out
       return false;
     }
 
@@ -55,11 +59,16 @@ const App: React.FC = () => {
       emoji: answer.emoji,
       points: ANSWERS_COUNT - index,
       revealed: false,
+      accepted: answer.accepted, // Pass along acceptable answers
     }));
+
+    // Determine which minigame to use for this round
+    const minigameType = minigameRotation[usedCategoryIndices.length % minigameRotation.length];
     
     setRoundData({
       category: newCategoryData.category,
-      answers: formattedAnswers
+      answers: formattedAnswers,
+      minigame: minigameType,
     });
     return true;
   }, [availableCategories, usedCategoryIndices, scores]);
@@ -105,8 +114,10 @@ const App: React.FC = () => {
       const finalWinner = newScores.team1 > newScores.team2 ? 1 : (newScores.team2 > newScores.team1 ? 2 : null);
       setGameWinner(finalWinner);
       setGameState('gameOver');
+      rainConfetti(); // Celebrate end of the game
     } else {
       setGameState('roundTransition');
+      rainConfetti(); // Celebrate end of the round
     }
   }, [currentRound, gameSettings, scores]);
   
@@ -127,30 +138,31 @@ const App: React.FC = () => {
             team2Score={scores.team2}
             onSkipCategory={handleSkipCategory}
             canSkip={canSkipCategory}
+            minigame={roundData.minigame}
         />;
       case 'roundTransition':
         return (
-          <div className="text-center text-white bg-black/60 backdrop-blur-sm p-8 rounded-2xl shadow-2xl border-2 border-yellow-400/50">
-            <h2 className="font-title text-5xl mb-4">Round {currentRound} Complete!</h2>
+          <div className="text-center text-white bg-sky-800/70 backdrop-blur-sm p-8 rounded-2xl shadow-2xl border-4 border-yellow-300">
+            <h2 className="font-title text-5xl mb-4" style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.3)'}}>Round {currentRound} Complete!</h2>
             <div className="flex justify-center gap-8 text-2xl mb-8">
                 <div>
                     <span className="block font-semibold text-blue-300">Team 1 Score</span>
                     <span className="block font-title text-6xl text-white">{scores.team1}</span>
                 </div>
                 <div>
-                    <span className="block font-semibold text-red-300">Team 2 Score</span>
+                    <span className="block font-semibold text-red-400">Team 2 Score</span>
                     <span className="block font-title text-6xl text-white">{scores.team2}</span>
                 </div>
             </div>
-            <button onClick={startNewRound} className="bg-green-600 text-white font-bold py-4 px-8 rounded-lg text-2xl hover:bg-green-700 transition transform hover:scale-105">
-              Start Next Round ({currentRound + 1}/{gameSettings?.totalRounds})
+            <button onClick={startNewRound} className="bg-lime-500 text-white font-title text-3xl py-4 px-8 rounded-xl shadow-lg hover:bg-lime-600 transition transform hover:scale-105 border-b-4 border-lime-700 active:border-b-0">
+              Start Round {currentRound + 1}/{gameSettings?.totalRounds}
             </button>
           </div>
         );
       case 'gameOver':
          return (
-          <div className="text-center text-white bg-black/60 backdrop-blur-sm p-8 rounded-2xl shadow-2xl border-2 border-yellow-400/50">
-            <h2 className="font-title text-6xl mb-4">GAME OVER!</h2>
+          <div className="text-center text-white bg-sky-800/70 backdrop-blur-sm p-8 rounded-2xl shadow-2xl border-4 border-yellow-300">
+            <h2 className="font-title text-6xl mb-4" style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.3)'}}>GAME OVER!</h2>
             {gameWinner ? (
                  <p className="text-4xl font-bold text-yellow-300 mb-6">Team {gameWinner} is the winner!</p>
             ) : (
@@ -162,11 +174,11 @@ const App: React.FC = () => {
                     <span className="block font-title text-6xl text-white">{scores.team1}</span>
                 </div>
                 <div>
-                    <span className="block font-semibold text-red-300">Team 2 Final Score</span>
+                    <span className="block font-semibold text-red-400">Team 2 Final Score</span>
                     <span className="block font-title text-6xl text-white">{scores.team2}</span>
                 </div>
             </div>
-            <button onClick={handlePlayAgain} className="bg-green-600 text-white font-bold py-4 px-8 rounded-lg text-2xl hover:bg-green-700 transition transform hover:scale-105">
+            <button onClick={handlePlayAgain} className="bg-lime-500 text-white font-title text-3xl py-4 px-8 rounded-xl shadow-lg hover:bg-lime-600 transition transform hover:scale-105 border-b-4 border-lime-700 active:border-b-0">
               Play Again
             </button>
           </div>
@@ -178,7 +190,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <main className="w-screen h-screen bg-cover bg-center flex items-center justify-center p-2 sm:p-4 overflow-hidden" style={{fontFamily: "'Nunito', sans-serif", background: "radial-gradient(circle, rgba(2,0,36,1) 0%, rgba(3,50,89,1) 0%, rgba(0,29,61,1) 100%)"}}>
+    <main className="w-screen h-screen flex items-center justify-center p-2 sm:p-4 overflow-hidden">
       {renderContent()}
     </main>
   );

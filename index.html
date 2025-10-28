@@ -7,14 +7,18 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Nunito:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Nunito:wght@400;600;700;900&family=Fredoka+One&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
     <style>
       body {
         font-family: 'Nunito', sans-serif;
-        background: radial-gradient(circle, rgba(2,0,36,1) 0%, rgba(3,50,89,1) 0%, rgba(0,29,61,1) 100%);
+        background-color: #4158D0;
+        background-image: linear-gradient(43deg, #4158D0 0%, #C850C0 46%, #FFCC70 100%);
+        overflow: hidden;
       }
       .font-title {
-        font-family: 'Luckiest Guy', cursive;
+        font-family: 'Fredoka One', cursive;
+        letter-spacing: 0.05em;
       }
       .perspective-container {
         perspective: 1000px;
@@ -33,6 +37,51 @@
       .flip-card-back {
         transform: rotateY(180deg);
       }
+      @keyframes strike-pulse {
+        0%, 100% {
+          transform: scale(1);
+          filter: drop-shadow(0 0 8px red);
+        }
+        50% {
+          transform: scale(1.15);
+          filter: drop-shadow(0 0 16px red);
+        }
+      }
+      .animate-strike-pulse {
+        animation: strike-pulse 0.5s ease-in-out;
+      }
+
+      /* Animated Star Background */
+      @keyframes move-twinkle-back {
+        from { background-position: 0 0; }
+        to { background-position: -10000px 5000px; }
+      }
+
+      .stars {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        width: 100%;
+        height: 100%;
+        display: block;
+        background: transparent url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAKfSURBVHgB7ZpdTttAFIb/PY2i5Cmk4AS8A1s3IeQ4OE5g3eASQpBnbmDnas2b0AnAhQ2s2U2YE9hwEMQJ3I4b0Jvl2LlCjNFY2+Sf5H/eY0eWbO+9fQAAAAAAAAAAAAAAT0NDQ0Pj6urq499bVlZW7k1aAFjNZp/lcjnn9/v1ey4vL5/1+/1L3DYnAEy8nZ2d5d7e3mZzc/PxlCs0Go0Lw2GhoqLiaDQaz1ms1hsAkvmG+vr6x0A0k2AwmHg8HhKA8n5+fubl5eVjgGACYf9dXV07wZAfTqeT+Xw+5wF8DwD8mZmZOQDTxGwjI4xGo0tAOBwGg8EARL3a+vt7Pru7u5UASKvV6jQajUXEA2D87u7u54eGhs4j8qA/wBgMBrvDwwlA+/r6s2q1GrPZLDAYDNT09PTq6upqjUYjAIBoNBo1m80eAByNRt/q6urEoBMQDIb/xPj/tAEggXg8vrS0tA4YDocZgG0wGAxOJhMPwAkgEAgAwDBpmZmZ7RUAwWCAzs5ODzI/AACKior3kZGREQAUCoV+w+Hwx2s11wCAarUaJpMJNBqNhAsODg7A1dXVkxcuQL/fL5xOJxUAkM1mI5VKpQAgk8nkq6urXwHC4fCj4+PjywCAw+HwZ2dn440FAQD09va6ycnJvQDg5uZm9/f3XwIEAgFrtdprADwUCs3q6uo20NPTMxgMPgA8Ho+nUqkkxAdYpVLJi8XiDQDw+XyeTqdzGQAUCgWxXq8LAMvlclOsVmsBAMDlcvk0Go2lTzSbaeOjBwAAAAAAAAAAAAAATzQNDQ2NrKys/A9+AQg/2A7r0a0sAAAAAElFTSuQmCC) repeat top center;
+        z-index: -2;
+      }
+      .twinkling {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        width: 100%;
+        height: 100%;
+        display: block;
+        background: transparent url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAKfSURBVHgB7ZpdTttAFIb/PY2i5Cmk4AS8A1s3IeQ4OE5g3eASQpBnbmDnas2b0AnAhQ2s2U2YE9hwEMQJ3I4b0Jvl2LlCjNFY2+Sf5H/eY0eWbO+9fQAAAAAAAAAAAAAAT0NDQ0Pj6urq499bVlZW7k1aAFjNZp/lcjnn9/v1ey4vL5/1+/1L3DYnAEy8nZ2d5d7e3mZzc/PxlCs0Go0Lw2GhoqLiaDQaz1ms1hsAkvmG+vr6x0A0k2AwmHg8HhKA8n5+fubl5eVjgGACYf9dXV07wZAfTqeT+Xw+5wF8DwD8mZmZOQDTxGwjI4xGo0tAOBwGg8EARL3a+vt7Pru7u5UASKvV6jQajUXEA2D87u7u54eGhs4j8qA/wBgMBrvDwwlA+/r6s2q1GrPZLDAYDNT09PTq6upqjUYjAIBoNBo1m80eAByNRt/q6urEoBMQDIb/xPj/tAEggXg8vrS0tA4YDocZgG0wGAxOJhMPwAkgEAgAwDBpmZmZ7RUAwWCAzs5ODzI/AACKior3kZGREQAUCoV+w+Hwx2s11wCAarUaJpMJNBqNhAsODg7A1dXVkxcuQL/fL5xOJxUAkM1mI5VKpQAgk8nkq6urXwHC4fCj4+PjywCAw+HwZ2dn440FAQD09va6ycnJvQDg5uZm9/f3XwIEAgFrtdprADwUCs3q6uo20NPTMxgMPgA8Ho+nUqkkxAdYpVLJi8XiDQDw+XyeTqdzGQAUCgWxXq8LAMvlclOsVmsBAMDlcvk0Go2lTzSbaeOjBwAAAAAAAAAAAAAATzQNDQ2NrKys/A9+AQg/2A7r0a0sAAAAAElFTSuQmCC) repeat top center;
+        z-index: -1;
+        animation: move-twinkle-back 200s linear infinite;
+      }
     </style>
   <script type="importmap">
 {
@@ -46,6 +95,8 @@
 </script>
 </head>
   <body>
+    <div class="stars"></div>
+    <div class="twinkling"></div>
     <div id="root"></div>
   </body>
 </html>

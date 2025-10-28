@@ -21,6 +21,7 @@ export enum GamePhase {
 export interface Answer {
   text: string;
   points: number;
+  accepted?: string[];
 }
 
 export interface RevealedAnswer extends Answer {
@@ -30,8 +31,16 @@ export interface RevealedAnswer extends Answer {
 
 export type Team = 1 | 2;
 
+export interface AnswerData {
+  text: string;
+  emoji?: string;
+  accepted?: string[];
+}
+
 export interface GameData {
   category: string;
   difficulty: Difficulty;
-  answers: { text: string; emoji?: string }[];
+  answers: AnswerData[];
 }
+
+export type FaceOffMinigameType = 'Classic' | 'TeleportingBell' | 'QuickDraw';

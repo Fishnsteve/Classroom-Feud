@@ -109,7 +109,9 @@ const GameBoard: React.FC<GameBoardProps> = ({
     const currentGuess = guess;
     setGuess('');
 
-    const unrevealedAnswers = answers.filter(a => !a.revealed).map(a => a.text);
+    // FIX: The checkAnswer function expects an array of RevealedAnswer objects,
+    // not just strings. Removed `.map(a => a.text)` to pass the correct type.
+    const unrevealedAnswers = answers.filter(a => !a.revealed);
     const alreadyRevealed = answers.filter(a => a.revealed).map(a => a.text);
 
     if (alreadyRevealed.some(ans => ans.toLowerCase() === currentGuess.toLowerCase())) {
@@ -176,7 +178,9 @@ const GameBoard: React.FC<GameBoardProps> = ({
     const currentGuess = guess;
     setGuess('');
 
-    const unrevealedAnswers = answers.filter(a => !a.revealed).map(a => a.text);
+    // FIX: The checkAnswer function expects an array of RevealedAnswer objects,
+    // not just strings. Removed `.map(a => a.text)` to pass the correct type.
+    const unrevealedAnswers = answers.filter(a => !a.revealed);
     const alreadyRevealed = answers.filter(a => a.revealed).map(a => a.text);
 
     if (alreadyRevealed.some(ans => ans.toLowerCase() === currentGuess.toLowerCase())) {

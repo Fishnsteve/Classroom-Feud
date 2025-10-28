@@ -46,26 +46,28 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ onStart }) => {
   };
 
   return (
-    <div className="w-full max-w-2xl mx-auto bg-blue-900 bg-opacity-80 backdrop-blur-sm rounded-2xl shadow-2xl p-8 md:p-12 border-2 border-blue-700">
+    <div className="w-full max-w-2xl mx-auto bg-sky-800/70 backdrop-blur-sm rounded-2xl shadow-2xl p-8 md:p-12 border-4 border-sky-500">
       <div className="text-center mb-8">
-        <h1 className="text-5xl md:text-6xl font-black text-yellow-400 uppercase tracking-wider" style={{ textShadow: '3px 3px 6px rgba(0,0,0,0.7)' }}>
+        <h1 className="text-5xl md:text-7xl font-title text-yellow-300 uppercase" style={{ textShadow: '3px 3px 0px #0c4a6e' }}>
           Classroom Feud
         </h1>
-        <p className="text-lg text-blue-200 mt-2">Let's see what the classroom says!</p>
+         <h2 className="text-lg md:text-lg font-black text-yellow-400 uppercase tracking-wider" style={{ textShadow: '3px 3px 6px rgba(0,0,0,0.7)' }}>
+         by Steven </h2>
+        <p className="text-lg text-sky-200 mt-2">Let's see what the classroom says! </p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-8">
         <div>
-          <label className="block text-xl font-bold text-white mb-3">Select Difficulty</label>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 bg-blue-800 rounded-lg p-1.5 border-2 border-blue-700">
+          <label className="block text-2xl font-title text-white mb-3" style={{ textShadow: '2px 2px 2px rgba(0,0,0,0.2)'}}>Select Difficulty</label>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 bg-sky-900/50 rounded-lg p-2 border-2 border-sky-700">
             {DIFFICULTIES.map(difficulty => (
               <button
                 type="button"
                 key={difficulty}
                 onClick={() => setSelectedDifficulty(difficulty)}
-                className={`flex-1 p-3 font-semibold rounded-md transition-colors duration-200 focus:outline-none focus:ring-4 focus:ring-yellow-400 focus:ring-opacity-50 ${
-                  selectedDifficulty === difficulty ? 'bg-yellow-400 text-blue-900 shadow-inner' : 'text-white hover:bg-blue-700'
-                } ${difficulty === Difficulty.DeathMode ? 'text-red-300 hover:bg-red-900' : ''}`}
+                className={`flex-1 p-3 text-lg font-bold rounded-md transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-yellow-400 focus:ring-opacity-50 transform hover:scale-105 ${
+                  selectedDifficulty === difficulty ? 'bg-yellow-400 text-sky-900 shadow-inner' : 'text-white bg-sky-700 hover:bg-sky-600'
+                } ${difficulty === Difficulty.DeathMode ? 'hover:bg-red-600' : ''}`}
                  style={selectedDifficulty === difficulty && difficulty === Difficulty.DeathMode ? {backgroundColor: '#ef4444', color: 'white'} : {}}
               >
                 {difficulty}
@@ -75,16 +77,16 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ onStart }) => {
         </div>
 
         <div>
-          <label className="block text-xl font-bold text-white mb-3">Number of Rounds</label>
+          <label className="block text-2xl font-title text-white mb-3" style={{ textShadow: '2px 2px 2px rgba(0,0,0,0.2)'}}>Number of Rounds</label>
           {availableRoundOptions.length > 0 ? (
-            <div className="flex bg-blue-800 rounded-lg p-1.5 border-2 border-blue-700">
+            <div className="flex bg-sky-900/50 rounded-lg p-2 border-2 border-sky-700 gap-2">
               {availableRoundOptions.map(rounds => (
                 <button
                   type="button"
                   key={rounds}
                   onClick={() => setSelectedRounds(rounds)}
-                  className={`flex-1 p-3 font-semibold rounded-md transition-colors duration-200 focus:outline-none focus:ring-4 focus:ring-yellow-400 focus:ring-opacity-50 ${
-                    selectedRounds === rounds ? 'bg-yellow-400 text-blue-900 shadow-inner' : 'text-white hover:bg-blue-700'
+                  className={`flex-1 p-3 text-lg font-bold rounded-md transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-yellow-400 focus:ring-opacity-50 transform hover:scale-105 ${
+                    selectedRounds === rounds ? 'bg-yellow-400 text-sky-900 shadow-inner' : 'text-white bg-sky-700 hover:bg-sky-600'
                   }`}
                 >
                   {rounds}
@@ -92,7 +94,7 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ onStart }) => {
               ))}
             </div>
           ) : (
-            <div className="text-center bg-red-900 bg-opacity-50 p-3 rounded-lg border border-red-700">
+            <div className="text-center bg-red-900/50 p-3 rounded-lg border border-red-700">
                 <p className="text-red-300 font-semibold">No categories available for this difficulty.</p>
             </div>
           )}
@@ -101,7 +103,7 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ onStart }) => {
         <button
           type="submit"
           disabled={availableRoundOptions.length === 0}
-          className="w-full bg-green-600 text-white text-2xl font-black py-4 rounded-xl shadow-lg hover:bg-green-700 transition-transform transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-green-400 disabled:bg-gray-600 disabled:cursor-not-allowed disabled:transform-none"
+          className="w-full bg-lime-500 text-white text-4xl font-title py-4 rounded-xl shadow-lg hover:bg-lime-600 transition-transform transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-lime-300 disabled:bg-gray-600 disabled:cursor-not-allowed disabled:transform-none border-b-8 border-lime-700 active:border-b-0"
         >
           Start Game!
         </button>
