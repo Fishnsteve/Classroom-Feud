@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { RevealedAnswer, Team, FaceOffMinigameType } from '../types';
 import { GamePhase } from '../types';
@@ -19,6 +20,7 @@ interface GameBoardProps {
   onSkipCategory: () => void;
   canSkip: boolean;
   minigame: FaceOffMinigameType;
+  currentRound: number;
 }
 
 const GameBoard: React.FC<GameBoardProps> = ({ 
@@ -30,13 +32,14 @@ const GameBoard: React.FC<GameBoardProps> = ({
   onSkipCategory,
   canSkip,
   minigame,
+  currentRound,
 }) => {
   const [answers, setAnswers] = useState<RevealedAnswer[]>(initialAnswers);
   const [roundPoints, setRoundPoints] = useState(0);
   const [guess, setGuess] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  const [phase, setPhase] = useState<GamePhase>(GamePhase.CategoryReveal);
+  const [phase, setPhase] = useState<GamePhase>(GamePhase.FaceOff);
   const [strikes, setStrikes] = useState(0);
   const [activeTeam, setActiveTeam] = useState<Team | null>(null);
   
@@ -53,15 +56,6 @@ const GameBoard: React.FC<GameBoardProps> = ({
   useEffect(() => {
     answerRefs.current = answerRefs.current.slice(0, initialAnswers.length);
   }, [initialAnswers]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (phase === GamePhase.CategoryReveal) {
-        setPhase(GamePhase.FaceOff);
-      }
-    }, 4000);
-    return () => clearTimeout(timer);
-  }, [phase, category]);
 
   useEffect(() => {
     if (error) {
@@ -109,15 +103,26 @@ const GameBoard: React.FC<GameBoardProps> = ({
   const determineFaceOffWinner = useCallback((ans1: RevealedAnswer | null, ans2: RevealedAnswer | null) => {
     const points1 = ans1?.points ?? -1;
     const points2 = ans2?.points ?? -1;
-
-    if (points1 > -1 && points2 === -1) setChoosingTeam(1);
-    else if (points1 === -1 && points2 > -1) setChoosingTeam(2);
+    
+    // If one team answers and the other doesn't, the one who answered wins.
+    if (points1 > -1 && points2 === -1) setChoosingTeam(faceOffDinger);
+    else if (points1 === -1 && points2 > -1) setChoosingTeam(faceOffDinger === 1 ? 2 : 1);
+    // If neither team answers, the team that buzzed in first wins by default.
     else if (points1 === -1 && points2 === -1) setChoosingTeam(faceOffDinger);
+    // If both answer, the higher score wins. Tie goes to the first buzzer.
     else if (points1 > -1 && points2 > -1) {
-        setChoosingTeam(points1 >= points2 ? 1 : 2);
+        const team1IsDinger = faceOffDinger === 1;
+        const dingerPoints = team1IsDinger ? points1 : points2;
+        const otherPoints = team1IsDinger ? points2 : points1;
+        
+        if (dingerPoints >= otherPoints) {
+            setChoosingTeam(faceOffDinger);
+        } else {
+            setChoosingTeam(faceOffDinger === 1 ? 2 : 1);
+        }
     }
     setPhase(GamePhase.PlayOrPass);
-  }, [faceOffDinger]);
+}, [faceOffDinger]);
 
   const handleFaceOffSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
@@ -255,25 +260,7 @@ const GameBoard: React.FC<GameBoardProps> = ({
 
   const renderPhaseContent = () => {
     switch(phase) {
-      case GamePhase.CategoryReveal:
-        return (
-            <div className="text-center p-4 flex flex-col items-center gap-4">
-                <h3 className="font-title text-3xl md:text-4xl text-white opacity-80 mb-2">The Category Is...</h3>
-                <h2 className="font-title text-4xl md:text-6xl text-yellow-300 animate-pulse tracking-wide" style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.5)' }}>{category}</h2>
-                {canSkip && (
-                  <button 
-                    onClick={onSkipCategory}
-                    className="mt-4 px-4 py-2 bg-gray-600 text-white text-sm font-bold rounded-lg hover:bg-gray-700 transition-colors disabled:bg-gray-800 disabled:text-gray-500"
-                  >
-                    Skip Category
-                  </button>
-                )}
-            </div>
-        );
-
       case GamePhase.FaceOff:
-        // Render FaceOffMinigame here if you use it
-        // For now, simple text-based faceoff
         return (
             <div className="w-full flex flex-col items-center gap-4">
                 <h2 className="font-title text-4xl text-center text-white mb-2">Team {faceOffTurn}'s Guess:</h2>
@@ -382,7 +369,7 @@ const GameBoard: React.FC<GameBoardProps> = ({
           <p className="font-title text-4xl md:text-6xl text-white">{team1Score}</p>
         </div>
         <div className="text-center px-2 sm:px-4 flex-grow">
-            <h2 className="font-title text-2xl md:text-4xl text-yellow-300 hidden sm:block truncate">{phase !== GamePhase.CategoryReveal ? category : ' '}</h2>
+            <h2 className="font-title text-2xl md:text-4xl text-yellow-300 hidden sm:block truncate">{category}</h2>
             <p className="font-title text-5xl md:text-7xl text-white">{roundPoints}</p>
             <p className="text-lg font-semibold text-yellow-300 hidden sm:block">Round Points</p>
         </div>
@@ -419,7 +406,14 @@ const GameBoard: React.FC<GameBoardProps> = ({
       </div>
        {/* Minigame controller for face-off */}
        {phase === GamePhase.FaceOff && !faceOffTurn && (
-         <FaceOffMinigame minigameType={minigame} onDing={handleDing} />
+         <FaceOffMinigame 
+            minigameType={minigame} 
+            onDing={handleDing}
+            category={category}
+            currentRound={currentRound}
+            onSkipCategory={onSkipCategory}
+            canSkip={canSkip}
+        />
        )}
     </div>
   );

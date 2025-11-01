@@ -5,72 +5,129 @@ import { playDingSound } from '../services/soundService';
 interface FaceOffMinigameProps {
   onDing: (team: Team) => void;
   minigameType: FaceOffMinigameType;
+  category: string;
+  currentRound: number;
+  onSkipCategory: () => void;
+  canSkip: boolean;
 }
 
-// --- Classic FaceOff Component ---
-const ClassicFaceOff: React.FC<{ onDing: (team: Team) => void }> = ({ onDing }) => {
-  return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-30 flex flex-col items-center justify-center text-white overflow-hidden">
-      <div className="text-center mb-8">
-        <h2 className="font-title text-5xl md:text-7xl text-yellow-300 animate-pulse" style={{textShadow: '2px 2px 8px rgba(0,0,0,0.7)'}}>
-          Face-Off!
-        </h2>
-        <p className="text-xl md:text-2xl mt-4">First team to hit their buzzer answers!</p>
-      </div>
-      <div className="flex justify-around w-full max-w-4xl">
-        <button onClick={() => onDing(1)} className="px-8 py-4 bg-blue-600 text-white font-title text-4xl rounded-lg shadow-lg transform transition hover:scale-110 border-b-4 border-blue-800 active:border-b-0">
-          Team 1
-        </button>
-        <button onClick={() => onDing(2)} className="px-8 py-4 bg-red-600 text-white font-title text-4xl rounded-lg shadow-lg transform transition hover:scale-110 border-b-4 border-red-800 active:border-b-0">
-          Team 2
-        </button>
-      </div>
-    </div>
-  );
-};
+interface MinigameComponentProps {
+    onDing: (team: Team) => void;
+    category: string;
+    currentRound: number;
+    onSkipCategory: () => void;
+    canSkip: boolean;
+}
 
 // --- Teleporting Bell Component ---
-const TeleportingBell: React.FC<{ onDing: (team: Team) => void }> = ({ onDing }) => {
+const TeleportingBell: React.FC<MinigameComponentProps> = ({ onDing, category, currentRound, onSkipCategory, canSkip }) => {
   const [position, setPosition] = useState({ x: 50, y: 50 }); // position in percentage
-  const [isReady, setIsReady] = useState(false);
+  const [revealStep, setRevealStep] = useState<'waiting' | 'revealing' | 'active'>('waiting');
+  const territoryRef = useRef<{ last: Team | null; count: number }>({ last: null, count: 0 });
 
   useEffect(() => {
-    const readyTimer = setTimeout(() => setIsReady(true), 2000);
-    return () => clearTimeout(readyTimer);
+    const t1 = setTimeout(() => setRevealStep('revealing'), 2000); // "Get Ready!" for 2s
+    const t2 = setTimeout(() => setRevealStep('active'), 5000); // Show category for 3s
+    return () => { clearTimeout(t1); clearTimeout(t2); };
   }, []);
 
   useEffect(() => {
-    if (!isReady) return;
+    if (revealStep !== 'active') return;
+
     const moveBell = () => {
-      const newX = 10 + Math.random() * 80;
-      const newY = 20 + Math.random() * 60;
+      const favorsTeam1 = currentRound % 2 !== 0; // Round 1, 3, 5... favor Team 1
+      let forceTerritory: Team | null = null;
+      
+      // Enforce a maximum of 2 consecutive appearances in the same territory
+      if (territoryRef.current.count >= 2 && territoryRef.current.last !== null) {
+        forceTerritory = territoryRef.current.last === 1 ? 2 : 1;
+      }
+      
+      let newX: number;
+
+      if (forceTerritory) {
+          // Force a switch to the other side
+          newX = (forceTerritory === 1)
+            ? 10 + Math.random() * 35 // Team 1 side (10-45)
+            : 55 + Math.random() * 35; // Team 2 side (55-90)
+      } else {
+        // Normal biased logic
+        const isFavoredSide = Math.random() < 0.7; // 70% chance to be on the favored side
+        if (favorsTeam1) {
+            newX = isFavoredSide 
+            ? 10 + Math.random() * 35 // Team 1 side (10-45)
+            : 55 + Math.random() * 35; // Team 2 side (55-90)
+        } else { // Favors Team 2
+            newX = isFavoredSide
+            ? 55 + Math.random() * 35 // Team 2 side (55-90)
+            : 10 + Math.random() * 35; // Team 1 side (10-45)
+        }
+      }
+
+      const newTerritory: Team = newX < 50 ? 1 : 2;
+
+      // Update territory tracking
+      if (territoryRef.current.last === newTerritory) {
+        territoryRef.current.count++;
+      } else {
+        territoryRef.current.last = newTerritory;
+        territoryRef.current.count = 1;
+      }
+      
+      // Adjust Y-axis to avoid the skip button at the top
+      const newY = 35 + Math.random() * 50; // new range: 35% to 85%
       setPosition({ x: newX, y: newY });
     };
-    moveBell();
-    const interval = setInterval(moveBell, 950);
+    moveBell(); // Initial move
+    const interval = setInterval(moveBell, 650); // Faster movement
     return () => clearInterval(interval);
-  }, [isReady]);
+  }, [revealStep, currentRound]);
 
   const handleBellClick = () => {
     const team: Team = position.x < 50 ? 1 : 2;
     onDing(team);
   };
 
+  const renderTopText = () => {
+    switch(revealStep) {
+        case 'waiting':
+            return <h2 className="font-title text-5xl md:text-7xl text-yellow-300" style={{textShadow: '2px 2px 8px rgba(0,0,0,0.7)'}}>GET READY!</h2>;
+        case 'revealing':
+            return (
+                <div className="text-center animate-pulse">
+                    <h3 className="font-title text-3xl md:text-4xl text-white opacity-80 mb-2">The Category Is...</h3>
+                    <h2 className="font-title text-4xl md:text-6xl text-yellow-300 tracking-wide" style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.5)' }}>{category}</h2>
+                </div>
+            );
+        case 'active':
+            return <h2 className="font-title text-5xl md:text-7xl text-yellow-300 animate-pulse" style={{textShadow: '2px 2px 8px rgba(0,0,0,0.7)'}}>CLICK THE BELL!</h2>;
+    }
+  }
+
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-30 flex items-center justify-center text-white overflow-hidden">
       <div className="absolute w-1/2 h-full left-0 bg-blue-500/30 border-r-2 border-yellow-300 border-dashed"></div>
       <div className="absolute w-1/2 h-full right-0 bg-red-500/30"></div>
-      <div className="absolute top-10 text-center">
-        <h2 className="font-title text-5xl md:text-7xl text-yellow-300 animate-pulse" style={{textShadow: '2px 2px 8px rgba(0,0,0,0.7)'}}>
-          {isReady ? 'CLICK THE BELL!' : 'GET READY!'}
-        </h2>
-        <p className="text-xl md:text-2xl mt-4">Click the bell on your team's side!</p>
+      <div className="absolute top-10 text-center p-4">
+        {renderTopText()}
+        {revealStep === 'active' && <p className="text-xl md:text-2xl mt-4">Click the bell on your team's side!</p>}
+        {(revealStep === 'revealing' || revealStep === 'active') && canSkip && (
+          <div className="mt-4">
+            <button
+              onClick={onSkipCategory}
+              className="px-3 py-1 bg-black/30 text-gray-300 text-xs font-bold rounded-full hover:bg-black/50 hover:text-white transition-colors"
+            >
+              SKIP CATEGORY
+            </button>
+          </div>
+        )}
       </div>
-      {isReady && (
+      {revealStep === 'active' && (
         <button
           onClick={handleBellClick}
           className="absolute w-28 h-28 md:w-36 md:h-36 bg-yellow-400 rounded-full shadow-2xl flex items-center justify-center transform -translate-x-1/2 -translate-y-1/2 transition-all duration-200 ease-out hover:scale-110 active:scale-95 border-8 border-yellow-200"
           style={{ top: `${position.y}%`, left: `${position.x}%`, boxShadow: '0 0 35px 15px rgba(250, 204, 21, 0.7)' }}
+          aria-label="Ding button"
         >
           <span className="font-title text-4xl md:text-5xl text-sky-900" style={{ textShadow: '1px 1px 0px white' }}>DING!</span>
         </button>
@@ -83,22 +140,86 @@ const TeleportingBell: React.FC<{ onDing: (team: Team) => void }> = ({ onDing })
   );
 };
 
+
+// --- Classic FaceOff Component ---
+const ClassicFaceOff: React.FC<MinigameComponentProps> = ({ onDing, category, onSkipCategory, canSkip }) => {
+  const [revealStep, setRevealStep] = useState<'waiting' | 'revealing' | 'active'>('waiting');
+  
+  useEffect(() => {
+    const t1 = setTimeout(() => setRevealStep('revealing'), 2000);
+    const t2 = setTimeout(() => setRevealStep('active'), 5000);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, []);
+
+  const renderTopText = () => {
+    switch(revealStep) {
+        case 'waiting':
+            return <h2 className="font-title text-5xl md:text-7xl text-yellow-300" style={{textShadow: '2px 2px 8px rgba(0,0,0,0.7)'}}>GET READY!</h2>;
+        case 'revealing':
+             return (
+                <div className="text-center animate-pulse">
+                    <h3 className="font-title text-3xl md:text-4xl text-white opacity-80 mb-2">The Category Is...</h3>
+                    <h2 className="font-title text-4xl md:text-6xl text-yellow-300 tracking-wide" style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.5)' }}>{category}</h2>
+                </div>
+            );
+        case 'active':
+            return <h2 className="font-title text-5xl md:text-7xl text-yellow-300 animate-pulse" style={{textShadow: '2px 2px 8px rgba(0,0,0,0.7)'}}>Face-Off!</h2>;
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-30 flex flex-col items-center justify-center text-white overflow-hidden">
+      <div className="text-center mb-8 p-4">
+        {renderTopText()}
+        {revealStep === 'active' && <p className="text-xl md:text-2xl mt-4">First team to hit their buzzer answers!</p>}
+        {(revealStep === 'revealing' || revealStep === 'active') && canSkip && (
+          <div className="mt-4">
+            <button
+              onClick={onSkipCategory}
+              className="px-3 py-1 bg-black/30 text-gray-300 text-xs font-bold rounded-full hover:bg-black/50 hover:text-white transition-colors"
+            >
+              SKIP CATEGORY
+            </button>
+          </div>
+        )}
+      </div>
+      {revealStep === 'active' && (
+        <div className="flex justify-around w-full max-w-4xl">
+            <button onClick={() => onDing(1)} className="px-8 py-4 bg-blue-600 text-white font-title text-4xl rounded-lg shadow-lg transform transition hover:scale-110 border-b-4 border-blue-800 active:border-b-0">
+            Team 1
+            </button>
+            <button onClick={() => onDing(2)} className="px-8 py-4 bg-red-600 text-white font-title text-4xl rounded-lg shadow-lg transform transition hover:scale-110 border-b-4 border-red-800 active:border-b-0">
+            Team 2
+            </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+
 // --- Quick Draw Component ---
-const QuickDraw: React.FC<{ onDing: (team: Team) => void }> = ({ onDing }) => {
-  type Status = 'waiting' | 'ready' | 'go' | 'finished';
+const QuickDraw: React.FC<MinigameComponentProps> = ({ onDing, category, onSkipCategory, canSkip }) => {
+  type Status = 'waiting' | 'revealing' | 'ready' | 'go' | 'finished';
   const [status, setStatus] = useState<Status>('waiting');
   const [message, setMessage] = useState('Wait for the DING!');
   const timeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
-    const randomDelay = 2000 + Math.random() * 3000;
-    timeoutRef.current = window.setTimeout(() => {
-      setStatus('go');
-      setMessage('DING!');
-      playDingSound();
-    }, randomDelay);
+    const t1 = setTimeout(() => setStatus('revealing'), 1500);
+    const t2 = setTimeout(() => {
+        setStatus('ready');
+        const randomDelay = 2000 + Math.random() * 3000;
+        timeoutRef.current = window.setTimeout(() => {
+          setStatus('go');
+          setMessage('DING!');
+          playDingSound();
+        }, randomDelay);
+    }, 4500);
 
     return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
@@ -112,7 +233,7 @@ const QuickDraw: React.FC<{ onDing: (team: Team) => void }> = ({ onDing }) => {
       clearTimeout(timeoutRef.current);
     }
     
-    if (status === 'waiting') {
+    if (status === 'ready') {
       const winner: Team = team === 1 ? 2 : 1;
       setMessage(`Team ${team} was too soon! Team ${winner} wins!`);
       setStatus('finished');
@@ -124,38 +245,66 @@ const QuickDraw: React.FC<{ onDing: (team: Team) => void }> = ({ onDing }) => {
     }
   };
 
+  const renderTopText = () => {
+    if(status === 'waiting') {
+        return <h2 className="font-title text-5xl md:text-7xl text-yellow-300">QUICK DRAW!</h2>
+    }
+    if (status === 'revealing') {
+        return (
+            <div className="text-center animate-pulse">
+                <h3 className="font-title text-3xl md:text-4xl text-white opacity-80 mb-2">The Category Is...</h3>
+                <h2 className="font-title text-4xl md:text-6xl text-yellow-300 tracking-wide">{category}</h2>
+            </div>
+        );
+    }
+    return <h2 className={`font-title text-5xl md:text-8xl text-yellow-300 ${status === 'go' ? 'animate-pulse' : ''}`} style={{textShadow: '2px 2px 8px rgba(0,0,0,0.7)'}}>{message}</h2>
+  }
+
+
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-30 flex flex-col items-center justify-center text-white overflow-hidden">
-      <div className="text-center mb-8">
-        <h2 className={`font-title text-5xl md:text-8xl text-yellow-300 ${status === 'go' ? 'animate-pulse' : ''}`} style={{textShadow: '2px 2px 8px rgba(0,0,0,0.7)'}}>
-          {message}
-        </h2>
-        <p className="text-xl md:text-2xl mt-4">
-            {status !== 'finished' ? "First to click AFTER the ding wins!" : " "}
+      <div className="text-center mb-8 p-4">
+        {renderTopText()}
+        <p className="text-xl md:text-2xl mt-4 h-8">
+            {status === 'ready' ? "First to click AFTER the ding wins!" : " "}
         </p>
+        {(status === 'revealing' || status === 'ready' || status === 'go') && canSkip && (
+          <div className="mt-4">
+            <button
+              onClick={onSkipCategory}
+              className="px-3 py-1 bg-black/30 text-gray-300 text-xs font-bold rounded-full hover:bg-black/50 hover:text-white transition-colors"
+            >
+              SKIP CATEGORY
+            </button>
+          </div>
+        )}
       </div>
-      <div className="flex justify-around w-full max-w-4xl">
-        <button disabled={status === 'finished'} onClick={() => handleClick(1)} className="px-8 py-4 bg-blue-600 text-white font-title text-4xl rounded-lg shadow-lg transform transition hover:scale-110 border-b-4 border-blue-800 active:border-b-0 disabled:bg-gray-600 disabled:border-gray-800 disabled:scale-100">
-          Team 1
-        </button>
-        <button disabled={status === 'finished'} onClick={() => handleClick(2)} className="px-8 py-4 bg-red-600 text-white font-title text-4xl rounded-lg shadow-lg transform transition hover:scale-110 border-b-4 border-red-800 active:border-b-0 disabled:bg-gray-600 disabled:border-gray-800 disabled:scale-100">
-          Team 2
-        </button>
-      </div>
+      {(status === 'ready' || status === 'go' || status === 'finished') && (
+        <div className="flex justify-around w-full max-w-4xl">
+            {/* FIX: The conditional render narrows the type of `status`, making checks for 'revealing' and 'waiting' redundant and causing a TS error. The button should only be disabled when finished. */}
+            <button disabled={status === 'finished'} onClick={() => handleClick(1)} className="px-8 py-4 bg-blue-600 text-white font-title text-4xl rounded-lg shadow-lg transform transition hover:scale-110 border-b-4 border-blue-800 active:border-b-0 disabled:bg-gray-600 disabled:border-gray-800 disabled:scale-100">
+            Team 1
+            </button>
+            {/* FIX: The conditional render narrows the type of `status`, making checks for 'revealing' and 'waiting' redundant and causing a TS error. The button should only be disabled when finished. */}
+            <button disabled={status === 'finished'} onClick={() => handleClick(2)} className="px-8 py-4 bg-red-600 text-white font-title text-4xl rounded-lg shadow-lg transform transition hover:scale-110 border-b-4 border-red-800 active:border-b-0 disabled:bg-gray-600 disabled:border-gray-800 disabled:scale-100">
+            Team 2
+            </button>
+        </div>
+      )}
     </div>
   );
 };
 
 // --- Main Manager Component ---
-const FaceOffMinigame: React.FC<FaceOffMinigameProps> = ({ onDing, minigameType }) => {
+const FaceOffMinigame: React.FC<FaceOffMinigameProps> = ({ onDing, minigameType, category, currentRound, onSkipCategory, canSkip }) => {
   switch (minigameType) {
     case 'QuickDraw':
-      return <QuickDraw onDing={onDing} />;
+      return <QuickDraw onDing={onDing} category={category} currentRound={currentRound} onSkipCategory={onSkipCategory} canSkip={canSkip} />;
     case 'TeleportingBell':
-      return <TeleportingBell onDing={onDing} />;
+      return <TeleportingBell onDing={onDing} category={category} currentRound={currentRound} onSkipCategory={onSkipCategory} canSkip={canSkip} />;
     case 'Classic':
     default:
-      return <ClassicFaceOff onDing={onDing} />;
+      return <ClassicFaceOff onDing={onDing} category={category} currentRound={currentRound} onSkipCategory={onSkipCategory} canSkip={canSkip} />;
   }
 };
 

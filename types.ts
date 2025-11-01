@@ -1,5 +1,4 @@
 
-// FIX: Removed circular import of 'Difficulty' from './types'. A file cannot import from itself.
 export enum Difficulty {
   Easy = "Easy",
   NotSoEasy = "Not-so-easy",
@@ -8,6 +7,7 @@ export enum Difficulty {
 }
 
 export enum GamePhase {
+  // FIX: Added 'CategoryReveal' as it was used in GameBoard.tsx but not defined in the enum.
   CategoryReveal,
   FaceOff,
   PlayOrPass,

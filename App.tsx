@@ -139,6 +139,7 @@ const App: React.FC = () => {
             onSkipCategory={handleSkipCategory}
             canSkip={canSkipCategory}
             minigame={roundData.minigame}
+            currentRound={currentRound}
         />;
       case 'roundTransition':
         return (
