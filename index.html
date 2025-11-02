@@ -4,6 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Classroom Feud</title>
+    <link rel="manifest" href="manifest.json" />
+    <meta name="theme-color" content="#4158D0" />
+    <link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cGF0aCBkPSJNMCAwaDEwMHYxMDBIMHoiIGZpbGw9IiM0MTU4RDAiLz48cGF0aCBkPSJNMjAgNzBoNjB2MTBoLTYweiIgZmlsbD0iIzY2NkIzRSIvPjxwYXRoIGQ9Ik0zMCA2MGg0MHYxMGgtNDB6IiBmaWxsPSIjOEU5RUFEIi8+PHBhdGggZD0iTTMwIDYwaDQwYTE1IDE1IDAgMCAwIDAtMzBoLTQwYTE1IDE1IDAgMCAwIDAgMzB6IiBmaWxsPSIjRkY2MzQ3Ii8+PHBhdGggZD0iTTUwIDM1YTggOCAwIDEgMSAwIDE2IDggOCAwIDAgMSAwLTE2eiIgZmlsbD0iI0ZGRkZGRiIgb3BhY2l0eT0iMC41Ii8+PC9zdmc+">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -98,5 +101,16 @@
     <div class="stars"></div>
     <div class="twinkling"></div>
     <div id="root"></div>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').then(registration => {
+            console.log('SW registered: ', registration);
+          }).catch(registrationError => {
+            console.log('SW registration failed: ', registrationError);
+          });
+        });
+      }
+    </script>
   </body>
 </html>
