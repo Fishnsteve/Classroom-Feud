@@ -83,8 +83,7 @@ const TeleportingBell: React.FC<MinigameComponentProps> = ({ onDing, category, c
     return () => clearInterval(interval);
   }, [revealStep, currentRound]);
 
-  const handleBellClick = (e: React.MouseEvent) => {
-    e.preventDefault(); // Prevent focus, selection, and other default behaviors.
+  const handleBellClick = () => {
     playDingSound();
     const team: Team = position.x < 50 ? 1 : 2;
     onDing(team);
@@ -107,7 +106,7 @@ const TeleportingBell: React.FC<MinigameComponentProps> = ({ onDing, category, c
   }
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-30 flex items-center justify-center text-white overflow-hidden" onContextMenu={(e) => e.preventDefault()}>
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-30 flex items-center justify-center text-white overflow-hidden">
       <div className="absolute w-1/2 h-full left-0 bg-blue-500/30 border-r-2 border-yellow-300 border-dashed"></div>
       <div className="absolute w-1/2 h-full right-0 bg-red-500/30"></div>
       <div className="absolute top-10 text-center p-4">
@@ -126,7 +125,7 @@ const TeleportingBell: React.FC<MinigameComponentProps> = ({ onDing, category, c
       </div>
       {revealStep === 'active' && (
         <button
-          onMouseDown={handleBellClick}
+          onClick={handleBellClick}
           className="absolute w-28 h-28 md:w-36 md:h-36 bg-yellow-400 rounded-full shadow-2xl flex items-center justify-center transform -translate-x-1/2 -translate-y-1/2 transition-all duration-200 ease-out hover:scale-110 active:scale-95 border-8 border-yellow-200"
           style={{ top: `${position.y}%`, left: `${position.x}%`, boxShadow: '0 0 35px 15px rgba(250, 204, 21, 0.7)' }}
           aria-label="Ding button"
@@ -170,7 +169,7 @@ const ClassicFaceOff: React.FC<MinigameComponentProps> = ({ onDing, category, on
   }
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-30 flex flex-col items-center justify-center text-white overflow-hidden" onContextMenu={(e) => e.preventDefault()}>
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-30 flex flex-col items-center justify-center text-white overflow-hidden">
       <div className="text-center mb-8 p-4">
         {renderTopText()}
         {revealStep === 'active' && <p className="text-xl md:text-2xl mt-4">First team to hit their buzzer answers!</p>}
@@ -187,10 +186,10 @@ const ClassicFaceOff: React.FC<MinigameComponentProps> = ({ onDing, category, on
       </div>
       {revealStep === 'active' && (
         <div className="flex justify-around w-full max-w-4xl">
-            <button onMouseDown={(e) => { e.preventDefault(); playDingSound(); onDing(1); }} className="px-8 py-4 bg-blue-600 text-white font-title text-4xl rounded-lg shadow-lg transform transition hover:scale-110 border-b-4 border-blue-800 active:border-b-0">
+            <button onClick={() => { playDingSound(); onDing(1); }} className="px-8 py-4 bg-blue-600 text-white font-title text-4xl rounded-lg shadow-lg transform transition hover:scale-110 border-b-4 border-blue-800 active:border-b-0">
             Team 1
             </button>
-            <button onMouseDown={(e) => { e.preventDefault(); playDingSound(); onDing(2); }} className="px-8 py-4 bg-red-600 text-white font-title text-4xl rounded-lg shadow-lg transform transition hover:scale-110 border-b-4 border-red-800 active:border-b-0">
+            <button onClick={() => { playDingSound(); onDing(2); }} className="px-8 py-4 bg-red-600 text-white font-title text-4xl rounded-lg shadow-lg transform transition hover:scale-110 border-b-4 border-red-800 active:border-b-0">
             Team 2
             </button>
         </div>
@@ -228,8 +227,7 @@ const QuickDraw: React.FC<MinigameComponentProps> = ({ onDing, category, onSkipC
     };
   }, []);
 
-  const handleClick = (e: React.MouseEvent, team: Team) => {
-    e.preventDefault();
+  const handleClick = (team: Team) => {
     if (status === 'finished') return;
 
     if (timeoutRef.current) {
@@ -267,7 +265,7 @@ const QuickDraw: React.FC<MinigameComponentProps> = ({ onDing, category, onSkipC
 
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-30 flex flex-col items-center justify-center text-white overflow-hidden" onContextMenu={(e) => e.preventDefault()}>
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-30 flex flex-col items-center justify-center text-white overflow-hidden">
       <div className="text-center mb-8 p-4">
         {renderTopText()}
         <p className="text-xl md:text-2xl mt-4 h-8">
@@ -287,11 +285,11 @@ const QuickDraw: React.FC<MinigameComponentProps> = ({ onDing, category, onSkipC
       {(status === 'ready' || status === 'go' || status === 'finished') && (
         <div className="flex justify-around w-full max-w-4xl">
             {/* FIX: The conditional render narrows the type of `status`, making checks for 'revealing' and 'waiting' redundant and causing a TS error. The button should only be disabled when finished. */}
-            <button disabled={status === 'finished'} onMouseDown={(e) => handleClick(e, 1)} className="px-8 py-4 bg-blue-600 text-white font-title text-4xl rounded-lg shadow-lg transform transition hover:scale-110 border-b-4 border-blue-800 active:border-b-0 disabled:bg-gray-600 disabled:border-gray-800 disabled:scale-100">
+            <button disabled={status === 'finished'} onClick={() => handleClick(1)} className="px-8 py-4 bg-blue-600 text-white font-title text-4xl rounded-lg shadow-lg transform transition hover:scale-110 border-b-4 border-blue-800 active:border-b-0 disabled:bg-gray-600 disabled:border-gray-800 disabled:scale-100">
             Team 1
             </button>
             {/* FIX: The conditional render narrows the type of `status`, making checks for 'revealing' and 'waiting' redundant and causing a TS error. The button should only be disabled when finished. */}
-            <button disabled={status === 'finished'} onMouseDown={(e) => handleClick(e, 2)} className="px-8 py-4 bg-red-600 text-white font-title text-4xl rounded-lg shadow-lg transform transition hover:scale-110 border-b-4 border-red-800 active:border-b-0 disabled:bg-gray-600 disabled:border-gray-800 disabled:scale-100">
+            <button disabled={status === 'finished'} onClick={() => handleClick(2)} className="px-8 py-4 bg-red-600 text-white font-title text-4xl rounded-lg shadow-lg transform transition hover:scale-110 border-b-4 border-red-800 active:border-b-0 disabled:bg-gray-600 disabled:border-gray-800 disabled:scale-100">
             Team 2
             </button>
         </div>
