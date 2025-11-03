@@ -9,6 +9,7 @@ import { MAX_STRIKES } from '../constants';
 import { shootStarsFromElement } from '../services/particleService';
 import { playCorrectSound, playWrongSound } from '../services/soundService';
 import FaceOffMinigame from './FaceOffMinigame';
+import Timer from './Timer';
 
 interface MatchResult {
   match: boolean;
@@ -88,8 +89,14 @@ const GameBoard: React.FC<GameBoardProps> = ({
 
   const [choosingTeam, setChoosingTeam] = useState<Team | null>(null);
   const [roundWinner, setRoundWinner] = useState<Team | null>(null);
+  const [timerKey, setTimerKey] = useState(0);
 
   const answerRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  // --- TIMER LOGIC ---
+  const resetTimer = useCallback(() => {
+    setTimerKey(prev => prev + 1);
+  }, []);
 
   // --- EFFECTS ---
   useEffect(() => {
@@ -206,23 +213,34 @@ const GameBoard: React.FC<GameBoardProps> = ({
     }
   }, [guess, answers, faceOffTurn, faceOffDinger, faceOffAnswers, revealAnswer, determineFaceOffWinner]);
 
-  const handleStrike = useCallback(() => {
-    playWrongSound();
-    const newStrikes = strikes + 1;
-    setStrikes(newStrikes);
-    if (phase === GamePhase.MainRound && newStrikes >= MAX_STRIKES) {
-      setTimeout(() => {
-        setStrikes(0); // Reset strikes for the steal attempt
-        setPhase(GamePhase.StealAttempt);
-        setActiveTeam(activeTeam === 1 ? 2 : 1);
-      }, 500);
-    }
-  }, [strikes, phase, activeTeam]);
-
   const startEndRoundSequence = useCallback((winningTeam: Team) => {
     setPhase(GamePhase.RoundReveal);
     setRoundWinner(winningTeam);
   }, []);
+
+  const handleStrike = useCallback(() => {
+    playWrongSound();
+
+    if (phase === GamePhase.MainRound) {
+        const newStrikes = strikes + 1;
+        setStrikes(newStrikes);
+        if (newStrikes >= MAX_STRIKES) {
+            setTimeout(() => {
+                setStrikes(0); // Reset strikes for the steal attempt
+                setPhase(GamePhase.StealAttempt);
+                setActiveTeam(activeTeam === 1 ? 2 : 1);
+                resetTimer(); // Start timer for steal attempt
+            }, 500);
+        } else {
+            resetTimer(); // Reset timer for next guess attempt
+        }
+    } else if (phase === GamePhase.StealAttempt) {
+        setStrikes(1); // Show one strike for the failed attempt
+        setTimeout(() => {
+            startEndRoundSequence(activeTeam === 1 ? 2 : 1);
+        }, 800);
+    }
+  }, [strikes, phase, activeTeam, resetTimer, startEndRoundSequence]);
 
   const handleGuessSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
@@ -254,24 +272,19 @@ const GameBoard: React.FC<GameBoardProps> = ({
       
       if (isBoardCleared) {
         startEndRoundSequence(activeTeam!);
+      } else {
+        resetTimer();
       }
     } else {
       setError(`"${currentGuess}" is not on the board!`);
-      if (phase === GamePhase.MainRound) {
-        handleStrike();
-      } else if (phase === GamePhase.StealAttempt) {
-        // Failed steal, show the strike, then the other team gets the points.
-        setStrikes(1);
-        setTimeout(() => {
-            startEndRoundSequence(activeTeam === 1 ? 2 : 1);
-        }, 800);
-      }
+      handleStrike();
     }
-  }, [guess, answers, phase, activeTeam, revealAnswer, handleStrike, startEndRoundSequence]);
+  }, [guess, answers, phase, activeTeam, revealAnswer, handleStrike, startEndRoundSequence, resetTimer]);
 
   const handlePlayOrPass = (decision: 'play' | 'pass') => {
     setActiveTeam(decision === 'play' ? choosingTeam : (choosingTeam === 1 ? 2 : 1));
     setPhase(GamePhase.MainRound);
+    resetTimer();
   };
 
   const handleDing = (team: Team) => {
@@ -338,10 +351,15 @@ const GameBoard: React.FC<GameBoardProps> = ({
       case GamePhase.MainRound:
       case GamePhase.StealAttempt:
         return (
-          <div className="w-full flex flex-col items-center gap-4">
-            <h2 className="font-title text-4xl text-center text-white mb-2">
+          <div className="w-full flex flex-col items-center gap-2">
+            <h2 className="font-title text-4xl text-center text-white">
               {phase === GamePhase.StealAttempt ? `Team ${activeTeam}, For The Steal!` : `Team ${activeTeam}'s Turn`}
             </h2>
+            <Timer
+                key={timerKey}
+                duration={phase === GamePhase.StealAttempt ? 62 : 30}
+                onTimeUp={handleStrike}
+            />
             <form onSubmit={handleGuessSubmit} className="w-full max-w-lg flex flex-col items-center gap-3">
               <input
                 type="text"
@@ -357,7 +375,7 @@ const GameBoard: React.FC<GameBoardProps> = ({
                   Submit
                 </button>
                 {phase === GamePhase.MainRound && (
-                    <button type="button" onClick={handleStrike} disabled={!activeTeam} className="px-8 py-3 text-xl font-bold text-white bg-red-600 rounded-lg hover:bg-red-700 transition-transform transform hover:scale-105 disabled:bg-gray-500 disabled:scale-100">
+                    <button type="button" onClick={() => { setError(null); handleStrike(); }} disabled={!activeTeam} className="px-8 py-3 text-xl font-bold text-white bg-red-600 rounded-lg hover:bg-red-700 transition-transform transform hover:scale-105 disabled:bg-gray-500 disabled:scale-100">
                         Wrong / Pass
                     </button>
                 )}
@@ -435,12 +453,12 @@ const GameBoard: React.FC<GameBoardProps> = ({
           </div>
           
           {/* Game Controls & Status */}
-          <div className="w-full lg:w-2/5 flex flex-col items-center justify-center bg-sky-800/60 p-4 rounded-xl shadow-lg min-h-[250px] sm:min-h-[300px] backdrop-blur-sm">
-            {error && <p className="text-red-400 text-xl font-semibold mb-4 text-center">{error}</p>}
-            { (phase === GamePhase.MainRound || phase === GamePhase.StealAttempt) && <StrikeDisplay strikes={strikes} totalStrikes={phase === GamePhase.StealAttempt ? 1 : MAX_STRIKES}/> }
-            <div className="mt-4 w-full flex-grow flex items-center justify-center">
+          <div className="w-full lg:w-2/5 flex flex-col items-center justify-between bg-sky-800/60 p-4 rounded-xl shadow-lg min-h-[250px] sm:min-h-[300px] backdrop-blur-sm">
+            {error && <p className="text-red-400 text-xl font-semibold text-center">{error}</p>}
+            <div className="w-full flex-grow flex flex-col items-center justify-center">
                 {renderPhaseContent()}
             </div>
+            { (phase === GamePhase.MainRound || phase === GamePhase.StealAttempt) && <div className="mt-auto"><StrikeDisplay strikes={strikes} totalStrikes={phase === GamePhase.StealAttempt ? 1 : MAX_STRIKES}/></div> }
           </div>
       </div>
        {/* Minigame controller for face-off */}
