@@ -255,7 +255,7 @@ export const gameData: GameData[] = [
       { text: "Vegetables", emoji: "🥕", accepted: ["vegetable", "carrot", "potato", "onion", "pumpkin", "cereal", "cornflakes"] },
       { text: "Milk & Eggs", emoji: "🥛", accepted: ["milk", "egg", "eggs"] },
       { text: "Bread", emoji: "🍞", accepted: ["toast", "sandwich", "pizza"] },
-      { text: "Fish & Seafood", emoji: "🐟🦀", accepted: ["crab", "sushi", "sashimi", "clam", "lobster" },
+      { text: "Fish & Seafood", emoji: "🐟🦀", accepted: ["crab", "sushi", "sashimi", "clam", "lobster"] },
       { text: "Electronics", emoji: "🔌💻", accepted: ["fridge", "refrigerator", "computer", "TV", "Samsung", "iPhone", "keyboard", "laptop"] },
       { text: "Meat", emoji: "🥩", accepted: ["chicken", "beef", "cow", "pork"] },
     ],
