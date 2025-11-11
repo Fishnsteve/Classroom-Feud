@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import type { Team, FaceOffMinigameType } from '../types';
 import { playDingSound, playCorrectSound, playWrongSound } from '../services/soundService';
 
@@ -21,72 +21,88 @@ interface MinigameComponentProps {
 
 // --- Teleporting Bell Component ---
 const TeleportingBell: React.FC<MinigameComponentProps> = ({ onDing, category, currentRound, onSkipCategory, canSkip }) => {
-  const [position, setPosition] = useState({ x: 50, y: 50 }); // position in percentage
+  const [bells, setBells] = useState<{id: number, x: number, y: number}[]>([]);
   const [revealStep, setRevealStep] = useState<'waiting' | 'revealing' | 'active'>('waiting');
-  const territoryRef = useRef<{ last: Team | null; count: number }>({ last: null, count: 0 });
+  
+  const nextBellId = useRef(0);
+  const duplicationTimeoutRef = useRef<number | null>(null);
+
+  const calculateNewPosition = useCallback(() => {
+    let newX: number;
+    
+    // 50% chance for the bell to be on the left (Team 1) or right (Team 2)
+    if (Math.random() < 0.5) {
+      // Team 1 side (10% to 45% from the left)
+      newX = 10 + Math.random() * 35;
+    } else {
+      // Team 2 side (55% to 90% from the left)
+      newX = 55 + Math.random() * 35;
+    }
+    
+    const newY = 35 + Math.random() * 50;
+    return { x: newX, y: newY };
+  }, []);
+
+  const createNewBell = useCallback(() => {
+    nextBellId.current += 1;
+    return {
+      id: nextBellId.current,
+      ...calculateNewPosition()
+    };
+  }, [calculateNewPosition]);
 
   useEffect(() => {
-    const t1 = setTimeout(() => setRevealStep('revealing'), 2000); // "Get Ready!" for 2s
-    const t2 = setTimeout(() => setRevealStep('active'), 5000); // Show category for 3s
+    const t1 = setTimeout(() => setRevealStep('revealing'), 2000);
+    const t2 = setTimeout(() => {
+        setRevealStep('active');
+        setBells([createNewBell()]);
+    }, 5000);
     return () => { clearTimeout(t1); clearTimeout(t2); };
-  }, []);
+  }, [createNewBell]);
 
   useEffect(() => {
     if (revealStep !== 'active') return;
 
-    const moveBell = () => {
-      const favorsTeam1 = currentRound % 2 !== 0; // Round 1, 3, 5... favor Team 1
-      let forceTerritory: Team | null = null;
-      
-      // Enforce a maximum of 2 consecutive appearances in the same territory
-      if (territoryRef.current.count >= 2 && territoryRef.current.last !== null) {
-        forceTerritory = territoryRef.current.last === 1 ? 2 : 1;
-      }
-      
-      let newX: number;
-
-      if (forceTerritory) {
-          // Force a switch to the other side
-          newX = (forceTerritory === 1)
-            ? 10 + Math.random() * 35 // Team 1 side (10-45)
-            : 55 + Math.random() * 35; // Team 2 side (55-90)
-      } else {
-        // Normal biased logic
-        const isFavoredSide = Math.random() < 0.7; // 70% chance to be on the favored side
-        if (favorsTeam1) {
-            newX = isFavoredSide 
-            ? 10 + Math.random() * 35 // Team 1 side (10-45)
-            : 55 + Math.random() * 35; // Team 2 side (55-90)
-        } else { // Favors Team 2
-            newX = isFavoredSide
-            ? 55 + Math.random() * 35 // Team 2 side (55-90)
-            : 10 + Math.random() * 35; // Team 1 side (10-45)
-        }
-      }
-
-      const newTerritory: Team = newX < 50 ? 1 : 2;
-
-      // Update territory tracking
-      if (territoryRef.current.last === newTerritory) {
-        territoryRef.current.count++;
-      } else {
-        territoryRef.current.last = newTerritory;
-        territoryRef.current.count = 1;
-      }
-      
-      // Adjust Y-axis to avoid the skip button at the top
-      const newY = 35 + Math.random() * 50; // new range: 35% to 85%
-      setPosition({ x: newX, y: newY });
+    const moveBells = () => {
+      setBells(currentBells => currentBells.map(bell => ({
+        ...bell,
+        ...calculateNewPosition()
+      })));
     };
-    moveBell(); // Initial move
-    const interval = setInterval(moveBell, 650); // Faster movement
+    
+    const interval = setInterval(moveBells, 650);
     return () => clearInterval(interval);
-  }, [revealStep, currentRound]);
+  }, [revealStep, calculateNewPosition]);
+  
+  useEffect(() => {
+    if (revealStep !== 'active' || bells.length === 0) return;
 
-  const handleBellClick = (e: React.MouseEvent) => {
-    e.preventDefault(); // Prevent focus, selection, and other default behaviors.
+    if (duplicationTimeoutRef.current) {
+        clearTimeout(duplicationTimeoutRef.current);
+    }
+    
+    const addBell = () => {
+      setBells(prevBells => {
+        if (prevBells.length >= 8) return prevBells; 
+        return [...prevBells, createNewBell()];
+      });
+    };
+    
+    const delay = Math.max(1200, 5000 - bells.length * 500); 
+    duplicationTimeoutRef.current = window.setTimeout(addBell, delay);
+
+    return () => {
+      if (duplicationTimeoutRef.current) {
+        clearTimeout(duplicationTimeoutRef.current);
+      }
+    };
+  }, [revealStep, bells.length, createNewBell]);
+
+
+  const handleBellClick = (e: React.MouseEvent, xPosition: number) => {
+    e.preventDefault();
     playDingSound();
-    const team: Team = position.x < 50 ? 1 : 2;
+    const team: Team = xPosition < 50 ? 1 : 2;
     onDing(team);
   };
 
@@ -124,16 +140,17 @@ const TeleportingBell: React.FC<MinigameComponentProps> = ({ onDing, category, c
           </div>
         )}
       </div>
-      {revealStep === 'active' && (
+      {revealStep === 'active' && bells.map(bell => (
         <button
-          onMouseDown={handleBellClick}
+          key={bell.id}
+          onMouseDown={(e) => handleBellClick(e, bell.x)}
           className="absolute w-28 h-28 md:w-36 md:h-36 bg-yellow-400 rounded-full shadow-2xl flex items-center justify-center transform -translate-x-1/2 -translate-y-1/2 transition-all duration-200 ease-out hover:scale-110 active:scale-95 border-8 border-yellow-200"
-          style={{ top: `${position.y}%`, left: `${position.x}%`, boxShadow: '0 0 35px 15px rgba(250, 204, 21, 0.7)' }}
+          style={{ top: `${bell.y}%`, left: `${bell.x}%`, boxShadow: '0 0 35px 15px rgba(250, 204, 21, 0.7)' }}
           aria-label="Ding button"
         >
           <span className="font-title text-4xl md:text-5xl text-sky-900" style={{ textShadow: '1px 1px 0px white' }}>DING!</span>
         </button>
-      )}
+      ))}
       <div className="absolute bottom-10 w-full flex justify-around">
         <h3 className="font-title text-4xl text-blue-300" style={{ textShadow: '2px 2px 2px rgba(0,0,0,0.5)' }}>TEAM 1</h3>
         <h3 className="font-title text-4xl text-red-300" style={{ textShadow: '2px 2px 2px rgba(0,0,0,0.5)' }}>TEAM 2</h3>
