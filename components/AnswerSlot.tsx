@@ -1,3 +1,4 @@
+
 import React, { forwardRef } from 'react';
 import type { RevealedAnswer } from '../types';
 
@@ -8,23 +9,27 @@ interface AnswerSlotProps {
 
 const AnswerSlot = forwardRef<HTMLDivElement, AnswerSlotProps>(({ answer, rank }, ref) => {
   return (
-    <div ref={ref} className={`perspective-container w-full h-16 sm:h-20 flip-card ${answer.revealed ? 'flipped' : ''}`}>
+    <div ref={ref} className={`perspective-container w-full h-14 sm:h-16 flip-card ${answer.revealed ? 'flipped' : ''}`}>
       <div className="relative w-full h-full flip-card-inner">
-        {/* Front of the card (Rank) */}
-        <div className="flip-card-front absolute w-full h-full bg-sky-500 rounded-lg shadow-lg flex items-center justify-center border-b-4 border-sky-700">
-          <span className="font-title text-4xl sm:text-5xl text-white opacity-40 absolute left-4">{rank}</span>
-          <span className="font-title text-6xl sm:text-7xl text-white opacity-80" style={{ textShadow: '2px 2px 2px rgba(0,0,0,0.2)'}}>?</span>
+        {/* Front: Mystery Slate */}
+        <div className="flip-card-front absolute w-full h-full rounded-xl bg-gradient-to-br from-slate-800 to-slate-900 border border-white/10 flex items-center justify-between px-6 shadow-xl">
+          <div className="w-8 h-8 rounded-full bg-cyan-500/20 flex items-center justify-center border border-cyan-500/30">
+            <span className="font-title text-cyan-400 text-lg">{rank}</span>
+          </div>
+          <div className="flex-grow flex justify-center">
+            <div className="w-1/2 h-1 bg-white/5 rounded-full"></div>
+          </div>
         </div>
         
-        {/* Back of the card (Answer) */}
-        <div className="flip-card-back absolute w-full h-full bg-yellow-300 rounded-lg shadow-xl flex items-center justify-between p-2 md:p-4 border-b-4 border-yellow-500">
-          <div className="flex-grow flex items-center justify-center gap-2 pr-2 overflow-hidden">
-              {answer.emoji && <span className="text-xl sm:text-2xl md:text-3xl" role="img" aria-label="emoji">{answer.emoji}</span>}
-              <span className="text-sm sm:text-base md:text-xl font-bold text-sky-800 uppercase text-center truncate">{answer.text}</span>
+        {/* Back: Revealed Truth */}
+        <div className="flip-card-back absolute w-full h-full bg-white rounded-xl flex items-center justify-between px-4 shadow-2xl border-b-4 border-slate-300">
+          <div className="flex items-center gap-3 overflow-hidden">
+             {answer.emoji && <span className="text-xl shrink-0" role="img">{answer.emoji}</span>}
+             <span className="font-title text-slate-900 text-lg truncate tracking-tight">{answer.text}</span>
           </div>
-          <span className="text-xl sm:text-3xl font-title text-white bg-sky-600 rounded-full flex items-center justify-center w-10 h-10 sm:w-14 sm:h-14 shadow-inner flex-shrink-0 border-2 border-white/50">
+          <div className="bg-slate-900 text-white font-title px-3 py-1 rounded-lg text-lg min-w-[3rem] text-center">
             {answer.points}
-          </span>
+          </div>
         </div>
       </div>
     </div>

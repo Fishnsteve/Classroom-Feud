@@ -1,33 +1,38 @@
+
 <!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Classroom Feud</title>
+    <title>Classroom Feud: Studio Edition</title>
     <link rel="manifest" href="manifest.json" />
-    <meta name="theme-color" content="#4158D0" />
-    <link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cGF0aCBkPSJNMCAwaDEwMHYxMDBIMHoiIGZpbGw9IiM0MTU4RDAiLz48cGF0aCBkPSJNMjAgNzBoNjB2MTBoLTYweiIgZmlsbD0iIzY2NkIzRSIvPjxwYXRoIGQ9Ik0zMCA2MGg0MHYxMGgtNDB6IiBmaWxsPSIjOEU5RUFEIi8+PHBhdGggZD0iTTMwIDYwaDQwYTE1IDE1IDAgMCAwIDAtMzBoLTQwYTE1IDE1IDAgMCAwIDAgMzB6IiBmaWxsPSIjRkY2MzQ3Ii8+PHBhdGggZD0iTTUwIDM1YTggOCAwIDEgMSAwIDE2IDggOCAwIDAgMSAwLTE2eiIgZmlsbD0iI0ZGRkZGRiIgb3BhY2l0eT0iMC41Ii8+PC9zdmc+">
+    <meta name="theme-color" content="#0a0a2e" />
+    <link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cGF0aCBkPSJNMCAwaDEwMHYxMDBIMHoiIGZpbGw9IiMwYTBhMmUiLz48cGF0aCBkPSJNMjAgNzBoNjB2MTBoLTYweiIgZmlsbD0iI2ZmZDcwMCIvPjwvc3ZnPg==">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Nunito:wght@400;600;700;900&family=Fredoka+One&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Oswald:wght@400;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
     <style>
       body {
-        font-family: 'Nunito', sans-serif;
-        background-color: #40321a;
-        background-image: linear-gradient(43deg, #4158D0 0%, #C850C0 16%, #40321a 100%);
+        font-family: 'Inter', sans-serif;
+        background-color: #020617;
+        background-image: 
+          radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), 
+          radial-gradient(at 50% 0%, hsla(225,39%,30%,1) 0, transparent 50%), 
+          radial-gradient(at 100% 0%, hsla(339,49%,30%,1) 0, transparent 50%);
         overflow: hidden;
       }
       .font-title {
-        font-family: 'Fredoka One', cursive;
-        letter-spacing: 0.05em;
+        font-family: 'Oswald', sans-serif;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
       }
       .perspective-container {
-        perspective: 1000px;
+        perspective: 1500px;
       }
       .flip-card-inner {
-        transition: transform 0.6s;
+        transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
         transform-style: preserve-3d;
       }
       .flip-card.flipped .flip-card-inner {
@@ -40,50 +45,27 @@
       .flip-card-back {
         transform: rotateY(180deg);
       }
+      
+      .glass-card {
+        background: rgba(15, 23, 42, 0.7);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      @keyframes neon-pulse {
+        0%, 100% { box-shadow: 0 0 10px rgba(0, 242, 255, 0.2), inset 0 0 5px rgba(0, 242, 255, 0.1); }
+        50% { box-shadow: 0 0 25px rgba(0, 242, 255, 0.4), inset 0 0 15px rgba(0, 242, 255, 0.2); }
+      }
+      .neon-glow {
+        animation: neon-pulse 3s infinite;
+      }
+
       @keyframes strike-pulse {
-        0%, 100% {
-          transform: scale(1);
-          filter: drop-shadow(0 0 8px red);
-        }
-        50% {
-          transform: scale(1.15);
-          filter: drop-shadow(0 0 16px red);
-        }
+        0%, 100% { transform: scale(1); filter: drop-shadow(0 0 5px #ef4444); opacity: 1; }
+        50% { transform: scale(1.2); filter: drop-shadow(0 0 20px #ef4444); opacity: 0.8; }
       }
       .animate-strike-pulse {
-        animation: strike-pulse 0.5s ease-in-out;
-      }
-
-      /* Animated Star Background */
-      @keyframes move-twinkle-back {
-        from { background-position: 0 0; }
-        to { background-position: -10000px 5000px; }
-      }
-
-      .stars {
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        width: 100%;
-        height: 100%;
-        display: block;
-        background: transparent url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAKfSURBVHgB7ZpdTttAFIb/PY2i5Cmk4AS8A1s3IeQ4OE5g3eASQpBnbmDnas2b0AnAhQ2s2U2YE9hwEMQJ3I4b0Jvl2LlCjNFY2+Sf5H/eY0eWbO+9fQAAAAAAAAAAAAAAT0NDQ0Pj6urq499bVlZW7k1aAFjNZp/lcjnn9/v1ey4vL5/1+/1L3DYnAEy8nZ2d5d7e3mZzc/PxlCs0Go0Lw2GhoqLiaDQaz1ms1hsAkvmG+vr6x0A0k2AwmHg8HhKA8n5+fubl5eVjgGACYf9dXV07wZAfTqeT+Xw+5wF8DwD8mZmZOQDTxGwjI4xGo0tAOBwGg8EARL3a+vt7Pru7u5UASKvV6jQajUXEA2D87u7u54eGhs4j8qA/wBgMBrvDwwlA+/r6s2q1GrPZLDAYDNT09PTq6upqjUYjAIBoNBo1m80eAByNRt/q6urEoBMQDIb/xPj/tAEggXg8vrS0tA4YDocZgG0wGAxOJhMPwAkgEAgAwDBpmZmZ7RUAwWCAzs5ODzI/AACKior3kZGREQAUCoV+w+Hwx2s11wCAarUaJpMJNBqNhAsODg7A1dXVkxcuQL/fL5xOJxUAkM1mI5VKpQAgk8nkq6urXwHC4fCj4+PjywCAw+HwZ2dn440FAQD09va6ycnJvQDg5uZm9/f3XwIEAgFrtdprADwUCs3q6uo20NPTMxgMPgA8Ho+nUqkkxAdYpVLJi8XiDQDw+XyeTqdzGQAUCgWxXq8LAMvlclOsVmsBAMDlcvk0Go2lTzSbaeOjBwAAAAAAAAAAAAAATzQNDQ2NrKys/A9+AQg/2A7r0a0sAAAAAElFTSuQmCC) repeat top center;
-        z-index: -2;
-      }
-      .twinkling {
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        width: 100%;
-        height: 100%;
-        display: block;
-        background: transparent url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAKfSURBVHgB7ZpdTttAFIb/PY2i5Cmk4AS8A1s3IeQ4OE5g3eASQpBnbmDnas2b0AnAhQ2s2U2YE9hwEMQJ3I4b0Jvl2LlCjNFY2+Sf5H/eY0eWbO+9fQAAAAAAAAAAAAAAT0NDQ0Pj6urq499bVlZW7k1aAFjNZp/lcjnn9/v1ey4vL5/1+/1L3DYnAEy8nZ2d5d7e3mZzc/PxlCs0Go0Lw2GhoqLiaDQaz1ms1hsAkvmG+vr6x0A0k2AwmHg8HhKA8n5+fubl5eVjgGACYf9dXV07wZAfTqeT+Xw+5wF8DwD8mZmZOQDTxGwjI4xGo0tAOBwGg8EARL3a+vt7Pru7u5UASKvV6jQajUXEA2D87u7u54eGhs4j8qA/wBgMBrvDwwlA+/r6s2q1GrPZLDAYDNT09PTq6upqjUYjAIBoNBo1m80eAByNRt/q6urEoBMQDIb/xPj/tAEggXg8vrS0tA4YDocZgG0wGAxOJhMPwAkgEAgAwDBpmZmZ7RUAwWCAzs5ODzI/AACKior3kZGREQAUCoV+w+Hwx2s11wCAarUaJpMJNBqNhAsODg7A1dXVkxcuQL/fL5xOJxUAkM1mI5VKpQAgk8nkq6urXwHC4fCj4+PjywCAw+HwZ2dn440FAQD09va6ycnJvQDg5uZm9/f3XwIEAgFrtdprADwUCs3q6uo20NPTMxgMPgA8Ho+nUqkkxAdYpVLJi8XiDQDw+XyeTqdzGQAUCgWxXq8LAMvlclOsVmsBAMDlcvk0Go2lTzSbaeOjBwAAAAAAAAAAAAAATzQNDQ2NrKys/A9+AQg/2A7r0a0sAAAAAElFTSuQmCC) repeat top center;
-        z-index: -1;
-        animation: move-twinkle-back 200s linear infinite;
+        animation: strike-pulse 0.6s ease-out;
       }
     </style>
   <script type="importmap">
@@ -98,20 +80,7 @@
 </script>
 </head>
   <body>
-    <div class="stars"></div>
-    <div class="twinkling"></div>
     <div id="root"></div>
-    <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js').then(registration => {
-            console.log('SW registered: ', registration);
-          }).catch(registrationError => {
-            console.log('SW registration failed: ', registrationError);
-          });
-        });
-      }
-    </script>
     <script type="module" src="/index.tsx"></script>
   </body>
 </html>

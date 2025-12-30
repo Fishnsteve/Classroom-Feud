@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { RevealedAnswer, Team, FaceOffMinigameType } from '../types';
 import { GamePhase } from '../types';
@@ -7,72 +6,38 @@ import AnswerSlot from './AnswerSlot';
 import StrikeDisplay from './StrikeDisplay';
 import { MAX_STRIKES } from '../constants';
 import { shootStarsFromElement } from '../services/particleService';
-import { playCorrectSound, playWrongSound } from '../services/soundService';
+import { playCorrectSound, playWrongSound, playDingSound } from '../services/soundService';
 import FaceOffMinigame from './FaceOffMinigame';
 import Timer from './Timer';
-
-interface MatchResult {
-  match: boolean;
-  text?: string;
-}
-
-/**
- * Checks if a user's guess is a match for any of the provided answers.
- * It checks against the main answer text and any "accepted" alternative spellings or synonyms.
- * @param guess The user's guessed answer.
- * @param answers An array of possible correct answers (RevealedAnswer objects).
- * @returns A MatchResult object indicating if a match was found and what the canonical answer text is.
- */
-function checkAnswer(guess: string, answers: RevealedAnswer[]): MatchResult {
-  const guessLower = guess.trim().toLowerCase();
-
-  if (!guessLower) {
-    return { match: false };
-  }
-
-  for (const answer of answers) {
-    // Check against the main answer text
-    if (answer.text.toLowerCase() === guessLower) {
-      return { match: true, text: answer.text };
-    }
-
-    // Check against acceptable alternative answers
-    if (answer.accepted) {
-      for (const acceptedWord of answer.accepted) {
-        if (acceptedWord.toLowerCase() === guessLower) {
-          // It's a match, but we return the main answer text for display
-          return { match: true, text: answer.text };
-        }
-      }
-    }
-  }
-
-  return { match: false };
-}
-
 
 interface GameBoardProps {
   initialAnswers: RevealedAnswer[];
   onRoundEnd: (winner: Team, points: number) => void;
   category: string;
+  team1Name: string;
+  team2Name: string;
   team1Score: number;
   team2Score: number;
   onSkipCategory: () => void;
   canSkip: boolean;
   minigame: FaceOffMinigameType;
   currentRound: number;
+  timerDuration: number;
 }
 
 const GameBoard: React.FC<GameBoardProps> = ({ 
   initialAnswers, 
   onRoundEnd, 
   category, 
+  team1Name,
+  team2Name,
   team1Score, 
   team2Score,
   onSkipCategory,
   canSkip,
   minigame,
   currentRound,
+  timerDuration,
 }) => {
   const [answers, setAnswers] = useState<RevealedAnswer[]>(initialAnswers);
   const [roundPoints, setRoundPoints] = useState(0);
@@ -93,84 +58,57 @@ const GameBoard: React.FC<GameBoardProps> = ({
 
   const answerRefs = useRef<(HTMLDivElement | null)[]>([]);
 
-  // --- TIMER LOGIC ---
-  const resetTimer = useCallback(() => {
-    setTimerKey(prev => prev + 1);
-  }, []);
+  const resetTimer = useCallback(() => setTimerKey(p => p + 1), []);
 
-  // --- EFFECTS ---
-  useEffect(() => {
-    answerRefs.current = answerRefs.current.slice(0, initialAnswers.length);
-  }, [initialAnswers]);
-
-  useEffect(() => {
-    if (error) {
-      const timer = setTimeout(() => setError(null), 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [error]);
-  
-  // --- CORE GAME LOGIC ---
+  /**
+   * Local matching logic: Checks guess against canonical text and accepted synonyms.
+   */
+  const findMatchLocally = (userGuess: string, unrevealed: RevealedAnswer[]) => {
+    const g = userGuess.toLowerCase().trim();
+    // 1. Exact match or accepted synonym match
+    const match = unrevealed.find(a => 
+      a.text.toLowerCase() === g || 
+      a.accepted?.some(syn => syn.toLowerCase() === g)
+    );
+    return match || null;
+  };
 
   const revealAnswer = useCallback((text: string, addPoints = true): RevealedAnswer | null => {
-    // Find the answer from the current state to return it synchronously.
     const matchIndex = answers.findIndex(ans => ans.text.toLowerCase() === text.toLowerCase() && !ans.revealed);
-
-    if (matchIndex === -1) {
-      return null;
-    }
+    if (matchIndex === -1) return null;
     
     const answerToReveal = answers[matchIndex];
-    
-    // Schedule state updates.
     setAnswers(currentAnswers => {
       const newAnswers = [...currentAnswers];
       newAnswers[matchIndex] = { ...newAnswers[matchIndex], revealed: true };
       return newAnswers;
     });
 
-    if (addPoints) {
-      setRoundPoints(prev => prev + answerToReveal.points);
-    }
+    if (addPoints) setRoundPoints(prev => prev + answerToReveal.points);
     
-    // Trigger side effects.
     setTimeout(() => {
       const element = answerRefs.current[matchIndex];
-      if (element) {
-        shootStarsFromElement(element);
-        playCorrectSound();
-      }
+      if (element) { shootStarsFromElement(element); playCorrectSound(); }
     }, 100);
     
-    // Return the found answer object immediately.
     return answerToReveal;
   }, [answers]);
 
-  const determineFaceOffWinner = useCallback((ans1: RevealedAnswer | null, ans2: RevealedAnswer | null) => {
-    const points1 = ans1?.points ?? -1;
-    const points2 = ans2?.points ?? -1;
-    
-    // If one team answers and the other doesn't, the one who answered wins.
-    if (points1 > -1 && points2 === -1) setChoosingTeam(faceOffDinger);
-    else if (points1 === -1 && points2 > -1) setChoosingTeam(faceOffDinger === 1 ? 2 : 1);
-    // If neither team answers, the team that buzzed in first wins by default.
-    else if (points1 === -1 && points2 === -1) setChoosingTeam(faceOffDinger);
-    // If both answer, the higher score wins. Tie goes to the first buzzer.
-    else if (points1 > -1 && points2 > -1) {
-        const team1IsDinger = faceOffDinger === 1;
-        const dingerPoints = team1IsDinger ? points1 : points2;
-        const otherPoints = team1IsDinger ? points2 : points1;
-        
-        if (dingerPoints >= otherPoints) {
-            setChoosingTeam(faceOffDinger);
-        } else {
-            setChoosingTeam(faceOffDinger === 1 ? 2 : 1);
-        }
-    }
-    setPhase(GamePhase.PlayOrPass);
-}, [faceOffDinger]);
+  const handlePlayOrPass = useCallback((decision: 'play' | 'pass') => {
+    setActiveTeam(decision === 'play' ? choosingTeam : (choosingTeam === 1 ? 2 : 1));
+    setPhase(GamePhase.MainRound);
+    resetTimer();
+  }, [choosingTeam, resetTimer]);
 
-  const handleFaceOffSubmit = useCallback((e: React.FormEvent) => {
+  const handleDing = useCallback((team: Team) => {
+    if (!faceOffDinger) {
+      setFaceOffDinger(team);
+      setFaceOffTurn(team);
+      playDingSound();
+    }
+  }, [faceOffDinger]);
+
+  const handleFaceOffSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!guess.trim() || !faceOffTurn) return;
 
@@ -181,37 +119,38 @@ const GameBoard: React.FC<GameBoardProps> = ({
     const alreadyRevealed = answers.filter(a => a.revealed).map(a => a.text);
 
     if (alreadyRevealed.some(ans => ans.toLowerCase() === currentGuess.toLowerCase())) {
-        setError("That answer is already on the board!");
+        setError("Already revealed.");
         return;
     }
 
-    const result = checkAnswer(currentGuess, unrevealedAnswers);
-    let revealedAnswer: RevealedAnswer | null = null;
-    if (result.match && result.text) {
-      revealedAnswer = revealAnswer(result.text, true);
+    const match = findMatchLocally(currentGuess, unrevealedAnswers);
+
+    let revealed: RevealedAnswer | null = null;
+    if (match) {
+        revealed = revealAnswer(match.text, true);
     } else {
-      playWrongSound();
+        playWrongSound();
     }
 
-    const isFirstGuess = faceOffTurn === faceOffDinger;
-
-    if (isFirstGuess) {
-        // First guesser: just store their answer and switch turns.
-        const newAnswers = [...faceOffAnswers];
-        newAnswers[faceOffTurn - 1] = revealedAnswer;
-        setFaceOffAnswers(newAnswers);
+    if (faceOffTurn === faceOffDinger) {
+        setFaceOffAnswers(prev => {
+          const next = [...prev];
+          next[faceOffTurn! - 1] = revealed;
+          return next;
+        });
         setFaceOffTurn(faceOffDinger === 1 ? 2 : 1);
     } else {
-        // Second guesser: update their answer and determine winner.
         const finalAnswers = [...faceOffAnswers];
-        finalAnswers[faceOffTurn - 1] = revealedAnswer;
-        setFaceOffAnswers(finalAnswers);
-
-        const team1Answer = finalAnswers[0];
-        const team2Answer = finalAnswers[1];
-        determineFaceOffWinner(team1Answer, team2Answer);
+        finalAnswers[faceOffTurn - 1] = revealed;
+        const p1 = (faceOffDinger === 1 ? finalAnswers[0] : finalAnswers[1])?.points ?? -1;
+        const p2 = (faceOffDinger === 1 ? finalAnswers[1] : finalAnswers[0])?.points ?? -1;
+        
+        if (p1 >= p2 && p1 > -1) setChoosingTeam(faceOffDinger);
+        else if (p2 > p1) setChoosingTeam(faceOffDinger === 1 ? 2 : 1);
+        else setChoosingTeam(faceOffDinger); // Tie-break to first buzzer
+        setPhase(GamePhase.PlayOrPass);
     }
-  }, [guess, answers, faceOffTurn, faceOffDinger, faceOffAnswers, revealAnswer, determineFaceOffWinner]);
+  };
 
   const startEndRoundSequence = useCallback((winningTeam: Team) => {
     setPhase(GamePhase.RoundReveal);
@@ -220,258 +159,144 @@ const GameBoard: React.FC<GameBoardProps> = ({
 
   const handleStrike = useCallback(() => {
     playWrongSound();
-
     if (phase === GamePhase.MainRound) {
-        const newStrikes = strikes + 1;
-        setStrikes(newStrikes);
-        if (newStrikes >= MAX_STRIKES) {
+        const next = strikes + 1;
+        setStrikes(next);
+        if (next >= MAX_STRIKES) {
             setTimeout(() => {
-                setStrikes(0); // Reset strikes for the steal attempt
+                setStrikes(0);
                 setPhase(GamePhase.StealAttempt);
                 setActiveTeam(activeTeam === 1 ? 2 : 1);
-                resetTimer(); // Start timer for steal attempt
-            }, 500);
-        } else {
-            resetTimer(); // Reset timer for next guess attempt
-        }
+                resetTimer();
+            }, 800);
+        } else resetTimer();
     } else if (phase === GamePhase.StealAttempt) {
-        setStrikes(1); // Show one strike for the failed attempt
-        setTimeout(() => {
-            startEndRoundSequence(activeTeam === 1 ? 2 : 1);
-        }, 800);
+        setStrikes(1);
+        setTimeout(() => startEndRoundSequence(activeTeam === 1 ? 2 : 1), 1000);
     }
   }, [strikes, phase, activeTeam, resetTimer, startEndRoundSequence]);
 
-  const handleGuessSubmit = useCallback((e: React.FormEvent) => {
+  const handleGuessSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!guess.trim() || !activeTeam) return;
 
-    const currentGuess = guess;
+    const currentGuess = guess.trim();
     setGuess('');
 
     const unrevealedAnswers = answers.filter(a => !a.revealed);
-    const alreadyRevealed = answers.filter(a => a.revealed).map(a => a.text);
+    const match = findMatchLocally(currentGuess, unrevealedAnswers);
 
-    if (alreadyRevealed.some(ans => ans.toLowerCase() === currentGuess.toLowerCase())) {
-        setError("That answer is already on the board!");
-        setGuess(currentGuess);
-        return;
-    }
-
-    const result = checkAnswer(currentGuess, unrevealedAnswers);
-
-    if (result.match && result.text) {
-      revealAnswer(result.text);
-      const isBoardCleared = answers.filter(a => !a.revealed).length <= 1;
-
+    if (match) {
+      revealAnswer(match.text);
       if (phase === GamePhase.StealAttempt) {
-        // Successful steal, go to reveal sequence
-        startEndRoundSequence(activeTeam!);
-        return;
-      }
-      
-      if (isBoardCleared) {
-        startEndRoundSequence(activeTeam!);
-      } else {
-        resetTimer();
-      }
+        startEndRoundSequence(activeTeam);
+      } else if (answers.filter(a => !a.revealed).length <= 1) {
+        startEndRoundSequence(activeTeam);
+      } else resetTimer();
     } else {
-      setError(`"${currentGuess}" is not on the board!`);
+      setError(`"${currentGuess}" is not on the board.`);
       handleStrike();
     }
-  }, [guess, answers, phase, activeTeam, revealAnswer, handleStrike, startEndRoundSequence, resetTimer]);
-
-  const handlePlayOrPass = (decision: 'play' | 'pass') => {
-    setActiveTeam(decision === 'play' ? choosingTeam : (choosingTeam === 1 ? 2 : 1));
-    setPhase(GamePhase.MainRound);
-    resetTimer();
   };
-
-  const handleDing = (team: Team) => {
-    if (!faceOffDinger) {
-      setFaceOffDinger(team);
-      setFaceOffTurn(team);
-    }
-  };
-  
-  const handleRevealNextAnswer = () => {
-    const unrevealed = answers
-      .filter(a => !a.revealed)
-      .sort((a, b) => b.points - a.points); // Reveal from top to bottom
-
-    if (unrevealed.length > 0) {
-        revealAnswer(unrevealed[0].text, false); 
-    }
-
-    if (unrevealed.length <= 1) {
-        setTimeout(() => {
-            setPhase(GamePhase.RoundOver);
-        }, 800);
-    }
-  };
-
-  const renderPhaseContent = () => {
-    switch(phase) {
-      case GamePhase.FaceOff:
-        return (
-            <div className="w-full flex flex-col items-center gap-4">
-                <h2 className="font-title text-4xl text-center text-white mb-2">Team {faceOffTurn}'s Guess:</h2>
-                <form onSubmit={handleFaceOffSubmit} className="w-full max-w-lg flex flex-col items-center gap-4">
-                    <input
-                      type="text"
-                      value={guess}
-                      onChange={(e) => setGuess(e.target.value)}
-                      className="w-full p-4 text-2xl text-center rounded-lg bg-white/90 text-gray-900 shadow-lg focus:outline-none focus:ring-4 focus:ring-yellow-400"
-                      placeholder="Enter your guess..."
-                      autoFocus
-                    />
-                    <button type="submit" className="px-8 py-3 text-2xl font-bold text-white bg-green-600 rounded-lg hover:bg-green-700 transition-transform transform hover:scale-105">
-                      Submit
-                    </button>
-                </form>
-            </div>
-        );
-
-      case GamePhase.PlayOrPass:
-        return (
-            <div className="text-center p-4">
-                <h2 className="font-title text-4xl text-white mb-4">Team {choosingTeam} wins the face-off!</h2>
-                <p className="text-xl text-yellow-300 mb-6">Will you play the round or pass?</p>
-                <div className="flex justify-center gap-4">
-                    <button onClick={() => handlePlayOrPass('play')} className="px-10 py-4 font-title text-3xl text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-transform transform hover:scale-105 shadow-lg">
-                        Play!
-                    </button>
-                    <button onClick={() => handlePlayOrPass('pass')} className="px-10 py-4 font-title text-3xl text-white bg-orange-600 rounded-lg hover:bg-orange-700 transition-transform transform hover:scale-105 shadow-lg">
-                        Pass!
-                    </button>
-                </div>
-            </div>
-        );
-
-      case GamePhase.MainRound:
-      case GamePhase.StealAttempt:
-        return (
-          <div className="w-full flex flex-col items-center gap-2">
-            <h2 className="font-title text-4xl text-center text-white">
-              {phase === GamePhase.StealAttempt ? `Team ${activeTeam}, For The Steal!` : `Team ${activeTeam}'s Turn`}
-            </h2>
-            <Timer
-                key={timerKey}
-                duration={phase === GamePhase.StealAttempt ? 62 : 30}
-                onTimeUp={handleStrike}
-            />
-            <form onSubmit={handleGuessSubmit} className="w-full max-w-lg flex flex-col items-center gap-3">
-              <input
-                type="text"
-                value={guess}
-                onChange={(e) => setGuess(e.target.value)}
-                className="w-full p-4 text-2xl text-center rounded-lg bg-white/90 text-gray-900 shadow-lg focus:outline-none focus:ring-4 focus:ring-yellow-400"
-                placeholder="Enter your guess..."
-                autoFocus
-                disabled={!activeTeam}
-              />
-              <div className="flex gap-3">
-                <button type="submit" disabled={!activeTeam || !guess.trim()} className="px-8 py-3 text-xl font-bold text-white bg-green-600 rounded-lg hover:bg-green-700 transition-transform transform hover:scale-105 disabled:bg-gray-500 disabled:scale-100">
-                  Submit
-                </button>
-                {phase === GamePhase.MainRound && (
-                    <button type="button" onClick={() => { setError(null); handleStrike(); }} disabled={!activeTeam} className="px-8 py-3 text-xl font-bold text-white bg-red-600 rounded-lg hover:bg-red-700 transition-transform transform hover:scale-105 disabled:bg-gray-500 disabled:scale-100">
-                        Wrong / Pass
-                    </button>
-                )}
-              </div>
-            </form>
-          </div>
-        );
-      
-      case GamePhase.RoundReveal:
-          const unrevealedCount = answers.filter(a => !a.revealed).length;
-          return (
-             <div className="text-center">
-                <h2 className="font-title text-4xl text-white mb-6">Reveal the board!</h2>
-                <button 
-                    onClick={handleRevealNextAnswer} 
-                    className="bg-yellow-500 text-blue-900 font-bold py-3 px-6 rounded-lg text-xl hover:bg-yellow-400 transition transform hover:scale-105"
-                >
-                    Reveal Next Answer ({unrevealedCount} left)
-                </button>
-            </div>
-          );
-
-      case GamePhase.RoundOver:
-        return (
-            <div className="text-center">
-                <h2 className="font-title text-4xl text-white mb-6">Round Complete!</h2>
-                <button 
-                    onClick={() => onRoundEnd(roundWinner!, roundPoints)} 
-                    className="bg-lime-500 text-white text-3xl font-title py-4 px-8 rounded-xl shadow-lg hover:bg-lime-600 transition transform hover:scale-105 border-b-4 border-lime-700 active:border-b-0"
-                >
-                    Continue to Scores
-                </button>
-            </div>
-        );
-      
-      default:
-        return null;
-    }
-  }
 
   return (
-    <div className="w-full h-full max-w-7xl mx-auto flex flex-col items-center p-2 sm:p-4 relative">
-      
-      {/* Score Header */}
-      <div className="w-full flex justify-between items-center bg-sky-800/60 p-2 sm:p-4 rounded-xl shadow-lg border-2 border-yellow-400/50 mb-4 backdrop-blur-sm">
-        <div className={`text-center px-2 sm:px-4 py-1 rounded-lg transition-all duration-300 ${activeTeam === 1 || choosingTeam === 1 ? 'bg-blue-500 shadow-lg scale-105' : 'bg-black/20'}`}>
-          <h3 className="font-title text-xl md:text-3xl text-blue-300">Team 1</h3>
-          <p className="font-title text-4xl md:text-6xl text-white">{team1Score}</p>
+    <div className="w-full h-full flex flex-col gap-6 max-w-7xl relative">
+      {/* Professional TV Header */}
+      <div className="flex justify-between items-center gap-4">
+        <div className={`glass-card flex-1 p-6 rounded-3xl border-l-4 transition-all duration-500 ${activeTeam === 1 ? 'border-cyan-500 shadow-[0_0_30px_rgba(6,182,212,0.3)]' : 'border-transparent opacity-60'}`}>
+          <span className="text-slate-500 font-semibold block text-xs uppercase tracking-widest mb-1">{team1Name}</span>
+          <span className="font-title text-5xl text-white">{team1Score}</span>
         </div>
-        <div className="text-center px-2 sm:px-4 flex-grow">
-            <h2 className="font-title text-2xl md:text-4xl text-yellow-300 hidden sm:block truncate">{category}</h2>
-            <p className="font-title text-5xl md:text-7xl text-white">{roundPoints}</p>
-            <p className="text-lg font-semibold text-yellow-300 hidden sm:block">Round Points</p>
+        
+        <div className="glass-card flex-[2] p-8 rounded-3xl text-center border-y border-white/10 shadow-2xl relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-cyan-500 to-transparent opacity-50"></div>
+          <span className="text-cyan-400 font-title tracking-widest text-sm block mb-1">Round {currentRound} Category</span>
+          <h1 className="font-title text-3xl text-white truncate max-w-md mx-auto">{category}</h1>
+          <div className="mt-4 inline-block px-4 py-1 bg-white/5 rounded-full border border-white/10">
+            <span className="font-title text-xl text-yellow-400">{roundPoints}</span>
+            <span className="text-white/40 text-[10px] ml-2 font-bold uppercase">Pot</span>
+          </div>
         </div>
-        <div className={`text-center px-2 sm:px-4 py-1 rounded-lg transition-all duration-300 ${activeTeam === 2 || choosingTeam === 2 ? 'bg-red-500 shadow-lg scale-105' : 'bg-black/20'}`}>
-          <h3 className="font-title text-xl md:text-3xl text-red-300">Team 2</h3>
-          <p className="font-title text-4xl md:text-6xl text-white">{team2Score}</p>
+
+        <div className={`glass-card flex-1 p-6 rounded-3xl border-r-4 text-right transition-all duration-500 ${activeTeam === 2 ? 'border-pink-500 shadow-[0_0_30px_rgba(236,72,153,0.3)]' : 'border-transparent opacity-60'}`}>
+          <span className="text-slate-500 font-semibold block text-xs uppercase tracking-widest mb-1">{team2Name}</span>
+          <span className="font-title text-5xl text-white">{team2Score}</span>
         </div>
       </div>
-      
-      {/* Main Area */}
-      <div className="w-full flex flex-col lg:flex-row gap-4 flex-grow">
-          {/* Answer Board */}
-          <div className="w-full lg:w-3/5 grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-3 p-2 sm:p-4 bg-sky-800/60 rounded-xl shadow-lg backdrop-blur-sm">
-            {answers.map((answer, index) => (
-              <AnswerSlot 
-                key={`${answer.text}-${index}`} 
-                answer={answer} 
-                rank={index + 1}
-                // FIX: Ensure the ref callback doesn't return a value. The assignment expression
-                // implicitly returns the assigned element, which is not allowed for ref callbacks.
-                ref={el => { answerRefs.current[index] = el; }}
-              />
-            ))}
-          </div>
-          
-          {/* Game Controls & Status */}
-          <div className="w-full lg:w-2/5 flex flex-col items-center justify-between bg-sky-800/60 p-4 rounded-xl shadow-lg min-h-[250px] sm:min-h-[300px] backdrop-blur-sm">
-            {error && <p className="text-red-400 text-xl font-semibold text-center">{error}</p>}
-            <div className="w-full flex-grow flex flex-col items-center justify-center">
-                {renderPhaseContent()}
+
+      {/* Main Board Area */}
+      <div className="flex-grow flex flex-col lg:flex-row gap-6">
+        <div className="flex-[3] glass-card p-6 rounded-[2rem] grid grid-cols-1 md:grid-cols-2 gap-4 border border-white/5 shadow-inner">
+          {answers.map((ans, i) => (
+            <AnswerSlot key={i} answer={ans} rank={i + 1} ref={el => { answerRefs.current[i] = el; }} />
+          ))}
+        </div>
+
+        <div className="flex-[1.5] flex flex-col gap-6">
+          <div className="glass-card flex-grow p-8 rounded-[2rem] flex flex-col items-center justify-center text-center relative overflow-hidden">
+            <div className="relative z-10 w-full">
+              {phase === GamePhase.FaceOff && !faceOffTurn && (
+                <div className="animate-pulse">
+                  <h2 className="font-title text-3xl text-yellow-400 mb-2">Face-Off</h2>
+                  <p className="text-slate-400">Waiting for buzzer...</p>
+                </div>
+              )}
+
+              {(phase === GamePhase.FaceOff && faceOffTurn) && (
+                <form onSubmit={handleFaceOffSubmit} className="space-y-4">
+                  <h3 className="font-title text-white">Team {faceOffTurn} Guess</h3>
+                  <input autoFocus value={guess} onChange={e => setGuess(e.target.value)} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-4 text-2xl text-white text-center focus:border-cyan-500 focus:outline-none" />
+                  <button type="submit" className="w-full bg-cyan-600 text-white font-title py-4 rounded-xl">Submit</button>
+                </form>
+              )}
+
+              {phase === GamePhase.PlayOrPass && (
+                <div className="space-y-6">
+                   <h3 className="font-title text-white text-xl">Team {choosingTeam} Won!</h3>
+                   <div className="grid grid-cols-1 gap-3">
+                     <button onClick={() => handlePlayOrPass('play')} className="bg-cyan-600 text-white font-title py-4 rounded-xl hover:bg-cyan-500 transition-all">Play Board</button>
+                     <button onClick={() => handlePlayOrPass('pass')} className="bg-slate-700 text-white font-title py-4 rounded-xl hover:bg-slate-600 transition-all">Pass Board</button>
+                   </div>
+                </div>
+              )}
+
+              {(phase === GamePhase.MainRound || phase === GamePhase.StealAttempt) && (
+                <div className="space-y-4">
+                  <Timer key={timerKey} duration={timerDuration} onTimeUp={handleStrike} />
+                  <form onSubmit={handleGuessSubmit} className="space-y-4">
+                    <input autoFocus value={guess} onChange={e => setGuess(e.target.value)} placeholder="Type guess..." className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-4 text-2xl text-white text-center focus:border-cyan-500 focus:outline-none" />
+                    <button type="submit" className="w-full bg-cyan-600 text-white font-title py-4 rounded-xl">Guess</button>
+                  </form>
+                  {error && <p className="text-red-400 text-sm font-semibold">{error}</p>}
+                </div>
+              )}
+
+              {phase === GamePhase.RoundReveal && (
+                <div className="space-y-4">
+                  <h3 className="font-title text-white text-2xl">Reveal Board</h3>
+                  <button onClick={() => {
+                    const next = answers.find(a => !a.revealed);
+                    if (next) revealAnswer(next.text, false);
+                    else setPhase(GamePhase.RoundOver);
+                  }} className="w-full bg-yellow-500 text-slate-900 font-title py-4 rounded-xl">Show Next</button>
+                </div>
+              )}
+
+              {phase === GamePhase.RoundOver && (
+                 <button onClick={() => onRoundEnd(roundWinner!, roundPoints)} className="w-full bg-cyan-600 text-white font-title py-5 rounded-2xl">Continue</button>
+              )}
             </div>
-            { (phase === GamePhase.MainRound || phase === GamePhase.StealAttempt) && <div className="mt-auto"><StrikeDisplay strikes={strikes} totalStrikes={phase === GamePhase.StealAttempt ? 1 : MAX_STRIKES}/></div> }
           </div>
+
+          <div className="glass-card p-6 rounded-[2rem] flex items-center justify-center">
+            <StrikeDisplay strikes={strikes} totalStrikes={phase === GamePhase.StealAttempt ? 1 : MAX_STRIKES} />
+          </div>
+        </div>
       </div>
-       {/* Minigame controller for face-off */}
-       {phase === GamePhase.FaceOff && !faceOffTurn && (
-         <FaceOffMinigame 
-            minigameType={minigame} 
-            onDing={handleDing}
-            category={category}
-            currentRound={currentRound}
-            onSkipCategory={onSkipCategory}
-            canSkip={canSkip}
-        />
-       )}
+
+      {phase === GamePhase.FaceOff && !faceOffTurn && (
+        <FaceOffMinigame onDing={handleDing} minigameType={minigame} category={category} currentRound={currentRound} onSkipCategory={onSkipCategory} canSkip={canSkip} />
+      )}
     </div>
   );
 };
